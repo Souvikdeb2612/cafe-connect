@@ -88,15 +88,18 @@ const fetchDashboardKPIs = async (
     .select("cost")
     .gte("date", CUTOFF_DATE);
 
-  const [sales, expenses, grocery, allSales, allExpenses, allGrocery] =
-    await Promise.all([
-      salesQuery,
-      expensesQuery,
-      groceryQuery,
-      allSalesQuery,
-      allExpensesQuery,
-      allGroceryQuery,
-    ]);
+  // Batch queries to reduce concurrent auth token lock contention
+  const [sales, expenses, grocery] = await Promise.all([
+    salesQuery,
+    expensesQuery,
+    groceryQuery,
+  ]);
+
+  const [allSales, allExpenses, allGrocery] = await Promise.all([
+    allSalesQuery,
+    allExpensesQuery,
+    allGroceryQuery,
+  ]);
 
   return {
     monthSales: (sales.data || []).reduce(
@@ -137,27 +140,37 @@ const fetchMonthlySales = async (
     };
   });
 
-  const results = await Promise.all(
-    months.map(async (m) => {
-      let query = supabase
-        .from("sales")
-        .select("total_revenue")
-        .gte("date", m.start)
-        .lte("date", m.end);
+  // Batch queries to reduce concurrent auth token lock contention (max 3 at a time)
+  const results: MonthlySalesData[] = [];
 
-      if (!isAllOutletsSelected && selectedOutletId) {
-        query = query.eq("outlet_id", selectedOutletId);
-      }
+  for (let i = 0; i < months.length; i += 3) {
+    const batch = months.slice(i, i + 3);
+    const batchResults = await Promise.all(
+      batch.map(async (m) => {
+        let query = supabase
+          .from("sales")
+          .select("total_revenue")
+          .gte("date", m.start)
+          .lte("date", m.end);
 
-      const { data, error } = await query;
-      if (error) throw error;
+        if (!isAllOutletsSelected && selectedOutletId) {
+          query = query.eq("outlet_id", selectedOutletId);
+        }
 
-      return {
-        name: m.label,
-        revenue: (data || []).reduce((s, r) => s + Number(r.total_revenue), 0),
-      };
-    }),
-  );
+        const { data, error } = await query;
+        if (error) throw error;
+
+        return {
+          name: m.label,
+          revenue: (data || []).reduce(
+            (s, r) => s + Number(r.total_revenue),
+            0,
+          ),
+        };
+      }),
+    );
+    results.push(...batchResults);
+  }
 
   return results;
 };
@@ -175,23 +188,33 @@ const fetchOutletComparison = async (): Promise<OutletComparisonData[]> => {
   if (outletsError) throw outletsError;
   if (!outlets) return [];
 
-  const results = await Promise.all(
-    outlets.map(async (o) => {
-      const { data, error } = await supabase
-        .from("sales")
-        .select("total_revenue")
-        .eq("outlet_id", o.id)
-        .gte("date", monthStart)
-        .lte("date", monthEnd);
+  // Batch queries to reduce concurrent auth token lock contention (max 3 at a time)
+  const results: OutletComparisonData[] = [];
 
-      if (error) throw error;
+  for (let i = 0; i < outlets.length; i += 3) {
+    const batch = outlets.slice(i, i + 3);
+    const batchResults = await Promise.all(
+      batch.map(async (o) => {
+        const { data, error } = await supabase
+          .from("sales")
+          .select("total_revenue")
+          .eq("outlet_id", o.id)
+          .gte("date", monthStart)
+          .lte("date", monthEnd);
 
-      return {
-        name: o.name,
-        revenue: (data || []).reduce((s, r) => s + Number(r.total_revenue), 0),
-      };
-    }),
-  );
+        if (error) throw error;
+
+        return {
+          name: o.name,
+          revenue: (data || []).reduce(
+            (s, r) => s + Number(r.total_revenue),
+            0,
+          ),
+        };
+      }),
+    );
+    results.push(...batchResults);
+  }
 
   return results;
 };
@@ -228,6 +251,6 @@ export const useOutletComparison = (
   return useQuery({
     queryKey: ["dashboard", "outletComparison", selectedOutletId],
     queryFn: fetchOutletComparison,
-    enabled: isAdmin,
+    enabled: isAdmin && !!selectedOutletId,
   });
 };
