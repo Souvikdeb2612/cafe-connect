@@ -106,9 +106,14 @@ const UserManagement = () => {
     // Get all unique user IDs from roles (this includes users without profiles)
     const allUserIds = [...new Set((roles || []).map((r) => r.user_id))];
 
+    console.log("Profiles:", profiles);
+    console.log("ProfileMap:", Array.from(profileMap.entries()));
+    console.log("All user IDs from roles:", allUserIds);
+
     // Build user list from all user IDs, merging with profile data when available
     const enriched: UserWithRole[] = allUserIds.map((userId) => {
       const profile = profileMap.get(userId);
+      console.log(`User ${userId}:`, { profile, found: !!profile });
       return {
         id: userId,
         email: profile?.email || "",
@@ -122,6 +127,7 @@ const UserManagement = () => {
       };
     });
 
+    console.log("Enriched users:", enriched);
     setUsers(enriched);
     setLoading(false);
   };
