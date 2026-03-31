@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOutlet } from "@/contexts/OutletContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, ShoppingBasket, Receipt, TrendingUp, Wallet, Landmark } from "lucide-react";
+import { DollarSign, ShoppingBasket, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-import { format, startOfMonth, endOfMonth, subMonths, startOfWeek } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 const Dashboard = () => {
   const { selectedOutletId } = useOutlet();
@@ -15,31 +15,40 @@ const Dashboard = () => {
   const [todayGrocery, setTodayGrocery] = useState(0);
   const [monthlySales, setMonthlySales] = useState<any[]>([]);
   const [outletComparison, setOutletComparison] = useState<any[]>([]);
-  const [weeklySales, setWeeklySales] = useState(0);
-  const [weeklyExpenses, setWeeklyExpenses] = useState(0);
-  const [weeklyGrocery, setWeeklyGrocery] = useState(0);
-  const [monthTotalSales, setMonthTotalSales] = useState(0);
-  const [monthTotalExpenses, setMonthTotalExpenses] = useState(0);
-  const [monthTotalGrocery, setMonthTotalGrocery] = useState(0);
+  const [totalFunds, setTotalFunds] = useState(0);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
-  const weekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), "yyyy-MM-dd");
 
   const isAll = selectedOutletId === "all";
+
+  useEffect(() => {
+    fetchTotalFunds();
+  }, []);
 
   useEffect(() => {
     if (!selectedOutletId) return;
     fetchKPIs();
     fetchMonthlySales();
-    fetchWeeklyAndMonthly();
     if (isAdmin && isAll) fetchOutletComparison();
   }, [selectedOutletId]);
 
   const applyOutletFilter = (query: any) => {
     if (!isAll) return query.eq("outlet_id", selectedOutletId);
     return query;
+  };
+
+  const fetchTotalFunds = async () => {
+    const [sales, expenses, grocery] = await Promise.all([
+      supabase.from("sales").select("total_revenue"),
+      supabase.from("expenses").select("amount"),
+      supabase.from("grocery_purchases").select("cost"),
+    ]);
+    const s = (sales.data || []).reduce((sum, r) => sum + Number(r.total_revenue), 0);
+    const e = (expenses.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
+    const g = (grocery.data || []).reduce((sum, r) => sum + Number(r.cost), 0);
+    setTotalFunds(s - e - g);
   };
 
   const fetchKPIs = async () => {
@@ -55,26 +64,6 @@ const Dashboard = () => {
     setTodaySales((sales.data || []).reduce((s, r) => s + Number(r.total_revenue), 0));
     setTodayExpenses((expenses.data || []).reduce((s, r) => s + Number(r.amount), 0));
     setTodayGrocery((grocery.data || []).reduce((s, r) => s + Number(r.cost), 0));
-  };
-
-  const fetchWeeklyAndMonthly = async () => {
-    let wSalesQ = supabase.from("sales").select("total_revenue").gte("date", weekStart);
-    let wExpQ = supabase.from("expenses").select("amount").gte("date", weekStart);
-    let wGroQ = supabase.from("grocery_purchases").select("cost").gte("date", weekStart);
-    let mSalesQ = supabase.from("sales").select("total_revenue").gte("date", monthStart).lte("date", monthEnd);
-    let mExpQ = supabase.from("expenses").select("amount").gte("date", monthStart).lte("date", monthEnd);
-    let mGroQ = supabase.from("grocery_purchases").select("cost").gte("date", monthStart).lte("date", monthEnd);
-
-    const [wS, wE, wG, mS, mE, mG] = await Promise.all([
-      applyOutletFilter(wSalesQ), applyOutletFilter(wExpQ), applyOutletFilter(wGroQ),
-      applyOutletFilter(mSalesQ), applyOutletFilter(mExpQ), applyOutletFilter(mGroQ),
-    ]);
-    setWeeklySales((wS.data || []).reduce((s, r) => s + Number(r.total_revenue), 0));
-    setWeeklyExpenses((wE.data || []).reduce((s, r) => s + Number(r.amount), 0));
-    setWeeklyGrocery((wG.data || []).reduce((s, r) => s + Number(r.cost), 0));
-    setMonthTotalSales((mS.data || []).reduce((s, r) => s + Number(r.total_revenue), 0));
-    setMonthTotalExpenses((mE.data || []).reduce((s, r) => s + Number(r.amount), 0));
-    setMonthTotalGrocery((mG.data || []).reduce((s, r) => s + Number(r.cost), 0));
   };
 
   const fetchMonthlySales = async () => {
@@ -109,8 +98,6 @@ const Dashboard = () => {
   };
 
   const profit = todaySales - todayExpenses - todayGrocery;
-  const weeklyProfit = weeklySales - weeklyExpenses - weeklyGrocery;
-  const monthlyProfit = monthTotalSales - monthTotalExpenses - monthTotalGrocery;
 
   const kpis = [
     { title: "Today's Sales", value: todaySales, icon: DollarSign, color: "text-primary" },
@@ -121,34 +108,21 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Cash in Hand */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">
           Dashboard {isAll ? "— All Outlets" : ""}
         </h1>
-        <div className="flex gap-3">
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 shadow-sm">
-            <Wallet className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs text-muted-foreground">Weekly Cash in Hand</p>
-              <p className={`text-lg font-bold ${weeklyProfit >= 0 ? "text-accent" : "text-destructive"}`}>
-                ₹{weeklyProfit.toLocaleString()}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 shadow-sm">
-            <Landmark className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-xs text-muted-foreground">Monthly Funds</p>
-              <p className={`text-lg font-bold ${monthlyProfit >= 0 ? "text-accent" : "text-destructive"}`}>
-                ₹{monthlyProfit.toLocaleString()}
-              </p>
-            </div>
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+          <Wallet className="h-5 w-5 text-primary" />
+          <div>
+            <p className="text-xs text-muted-foreground">Total Funds</p>
+            <p className={`text-lg font-bold ${totalFunds >= 0 ? "text-accent" : "text-destructive"}`}>
+              ₹{totalFunds.toLocaleString()}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* KPI Cards — works for both single outlet and "All Outlets" */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
           <Card key={kpi.title}>
