@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useOutlet } from "@/contexts/OutletContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDashboardKPIs, useMonthlySales, useOutletComparison } from "@/hooks/useDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -12,6 +11,7 @@ import {
   TrendingDown,
   Store,
   Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import {
   BarChart,
@@ -24,125 +24,37 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format } from "date-fns";
 
 const Dashboard = () => {
   const { selectedOutletId, isAllOutletsSelected } = useOutlet();
   const { isAdmin } = useAuth();
-  const [monthSales, setMonthSales] = useState(0);
-  const [monthExpenses, setMonthExpenses] = useState(0);
-  const [monthGrocery, setMonthGrocery] = useState(0);
-  const [totalSales, setTotalSales] = useState(0);
-  const [totalExpenses, setTotalExpenses] = useState(0);
-  const [totalGrocery, setTotalGrocery] = useState(0);
-  const [monthlySales, setMonthlySales] = useState<any[]>([]);
-  const [outletComparison, setOutletComparison] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const { data: kpiData, isLoading: kpiLoading } = useDashboardKPIs(
+    selectedOutletId,
+    isAllOutletsSelected
+  );
+  const { data: monthlySalesData, isLoading: monthlySalesLoading } = useMonthlySales(
+    selectedOutletId,
+    isAllOutletsSelected
+  );
+  const { data: outletComparisonData, isLoading: outletComparisonLoading } = useOutletComparison(
+    isAdmin,
+    selectedOutletId
+  );
+
+  const loading = kpiLoading || monthlySalesLoading || outletComparisonLoading;
 
   const INITIAL_CASH = 1920;
-  const CUTOFF_DATE = "2026-03-24";
 
-  const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
-  const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
-
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchKPIs(), fetchMonthlySales()]).finally(() =>
-      setLoading(false),
-    );
-  }, [selectedOutletId]);
-
-  useEffect(() => {
-    if (isAdmin) fetchOutletComparison();
-  }, [isAdmin]);
-
-  const fetchKPIs = async () => {
-    // Build queries conditionally based on whether "All Outlets" is selected
-    const salesQuery = isAllOutletsSelected
-      ? supabase
-          .from("sales")
-          .select("total_revenue")
-          .gte("date", monthStart)
-          .lte("date", monthEnd)
-      : supabase
-          .from("sales")
-          .select("total_revenue")
-          .eq("outlet_id", selectedOutletId!)
-          .gte("date", monthStart)
-          .lte("date", monthEnd);
-
-    const expensesQuery = isAllOutletsSelected
-      ? supabase
-          .from("expenses")
-          .select("amount")
-          .gte("date", monthStart)
-          .lte("date", monthEnd)
-      : supabase
-          .from("expenses")
-          .select("amount")
-          .eq("outlet_id", selectedOutletId!)
-          .gte("date", monthStart)
-          .lte("date", monthEnd);
-
-    const groceryQuery = isAllOutletsSelected
-      ? supabase
-          .from("grocery_purchases")
-          .select("cost")
-          .gte("date", monthStart)
-          .lte("date", monthEnd)
-      : supabase
-          .from("grocery_purchases")
-          .select("cost")
-          .eq("outlet_id", selectedOutletId!)
-          .gte("date", monthStart)
-          .lte("date", monthEnd);
-
-    // Always fetch aggregated data across all outlets for cash calculation
-    // (Available Cash is a centralized metric, not outlet-specific)
-    const allSalesQuery = supabase
-      .from("sales")
-      .select("total_revenue")
-      .gte("date", CUTOFF_DATE);
-
-    const allExpensesQuery = supabase
-      .from("expenses")
-      .select("amount")
-      .gte("date", CUTOFF_DATE);
-
-    const allGroceryQuery = supabase
-      .from("grocery_purchases")
-      .select("cost")
-      .gte("date", CUTOFF_DATE);
-
-    const [sales, expenses, grocery, allSales, allExpenses, allGrocery] =
-      await Promise.all([
-        salesQuery,
-        expensesQuery,
-        groceryQuery,
-        allSalesQuery,
-        allExpensesQuery,
-        allGroceryQuery,
-      ]);
-
-    setMonthSales(
-      (sales.data || []).reduce((s, r) => s + Number(r.total_revenue), 0),
-    );
-    setMonthExpenses(
-      (expenses.data || []).reduce((s, r) => s + Number(r.amount), 0),
-    );
-    setMonthGrocery(
-      (grocery.data || []).reduce((s, r) => s + Number(r.cost), 0),
-    );
-    setTotalSales(
-      (allSales.data || []).reduce((s, r) => s + Number(r.total_revenue), 0),
-    );
-    setTotalExpenses(
-      (allExpenses.data || []).reduce((s, r) => s + Number(r.amount), 0),
-    );
-    setTotalGrocery(
-      (allGrocery.data || []).reduce((s, r) => s + Number(r.cost), 0),
-    );
-  };
+  const monthSales = kpiData?.monthSales ?? 0;
+  const monthExpenses = kpiData?.monthExpenses ?? 0;
+  const monthGrocery = kpiData?.monthGrocery ?? 0;
+  const totalSales = kpiData?.totalSales ?? 0;
+  const totalExpenses = kpiData?.totalExpenses ?? 0;
+  const totalGrocery = kpiData?.totalGrocery ?? 0;
+  const monthlySales = monthlySalesData ?? [];
+  const outletComparison = outletComparisonData ?? [];
 
   const KPICard = ({
     title,
@@ -153,7 +65,7 @@ const Dashboard = () => {
   }: {
     title: string;
     value: number;
-    icon: any;
+    icon: LucideIcon;
     color: string;
     loading: boolean;
   }) => (
@@ -178,66 +90,6 @@ const Dashboard = () => {
       </CardContent>
     </Card>
   );
-
-  const fetchMonthlySales = async () => {
-    const months = Array.from({ length: 6 }, (_, i) => {
-      const d = subMonths(new Date(), 5 - i);
-      return {
-        start: format(startOfMonth(d), "yyyy-MM-dd"),
-        end: format(endOfMonth(d), "yyyy-MM-dd"),
-        label: format(d, "MMM"),
-      };
-    });
-
-    const results = await Promise.all(
-      months.map(async (m) => {
-        let query = supabase
-          .from("sales")
-          .select("total_revenue")
-          .gte("date", m.start)
-          .lte("date", m.end);
-        if (!isAllOutletsSelected && selectedOutletId) {
-          query = query.eq("outlet_id", selectedOutletId);
-        }
-        const { data } = await query;
-        return {
-          name: m.label,
-          revenue: (data || []).reduce(
-            (s, r) => s + Number(r.total_revenue),
-            0,
-          ),
-        };
-      }),
-    );
-    setMonthlySales(results);
-  };
-
-  const fetchOutletComparison = async () => {
-    const { data: outlets } = await supabase
-      .from("outlets")
-      .select("id, name")
-      .eq("is_active", true);
-    if (!outlets) return;
-
-    const results = await Promise.all(
-      outlets.map(async (o) => {
-        const { data } = await supabase
-          .from("sales")
-          .select("total_revenue")
-          .eq("outlet_id", o.id)
-          .gte("date", monthStart)
-          .lte("date", monthEnd);
-        return {
-          name: o.name,
-          revenue: (data || []).reduce(
-            (s, r) => s + Number(r.total_revenue),
-            0,
-          ),
-        };
-      }),
-    );
-    setOutletComparison(results);
-  };
 
   // Combined expenses for cash calculation (spreadsheet combines groceries + other expenses)
   const combinedMonthExpenses = monthExpenses + monthGrocery;

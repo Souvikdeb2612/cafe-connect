@@ -1,7 +1,13 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useOutlet } from "@/contexts/OutletContext";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  useCategories,
+  useExpenses,
+  useCreateExpense,
+  useUpdateExpense,
+  useDeleteExpense,
+} from "@/hooks/useExpenses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,8 +56,11 @@ const Expenses = () => {
   const { selectedOutletId } = useOutlet();
   const { user, isAdmin, roles } = useAuth();
   const { toast } = useToast();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const { data: categories = [] } = useCategories();
+  const { data: expenses = [] } = useExpenses(selectedOutletId);
+  const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
+  const deleteExpense = useDeleteExpense();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [form, setForm] = useState({
@@ -62,32 +71,6 @@ const Expenses = () => {
   });
 
   const canEdit = isAdmin || roles.includes("outlet_manager");
-
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    if (selectedOutletId) fetchExpenses();
-  }, [selectedOutletId]);
-
-  const fetchCategories = async () => {
-    const { data } = await supabase
-      .from("categories")
-      .select("id, name")
-      .eq("type", "expense")
-      .order("name");
-    setCategories(data || []);
-  };
-
-  const fetchExpenses = async () => {
-    const { data } = await supabase
-      .from("expenses")
-      .select("*, categories(name)")
-      .eq("outlet_id", selectedOutletId)
-      .order("date", { ascending: false });
-    setExpenses(data || []);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,39 +83,29 @@ const Expenses = () => {
       created_by: user?.id,
     };
 
-    if (editing) {
-      const { error } = await supabase
-        .from("expenses")
-        .update(payload)
-        .eq("id", editing.id);
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
+    try {
+      if (editing) {
+        await updateExpense.mutateAsync({ ...payload, id: editing.id });
+        toast({ title: "Expense updated successfully" });
+      } else {
+        await createExpense.mutateAsync(payload);
+        toast({ title: "Expense added successfully" });
       }
-    } else {
-      const { error } = await supabase.from("expenses").insert(payload);
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      setDialogOpen(false);
+      setEditing(null);
+      setForm({
+        category_id: "",
+        amount: "",
+        date: format(new Date(), "yyyy-MM-dd"),
+        notes: "",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
     }
-    setDialogOpen(false);
-    setEditing(null);
-    setForm({
-      category_id: "",
-      amount: "",
-      date: format(new Date(), "yyyy-MM-dd"),
-      notes: "",
-    });
-    fetchExpenses();
   };
 
   const handleEdit = (e: Expense) => {
@@ -147,8 +120,16 @@ const Expenses = () => {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("expenses").delete().eq("id", id);
-    fetchExpenses();
+    try {
+      await deleteExpense.mutateAsync(id);
+      toast({ title: "Expense deleted successfully" });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOutlet } from "@/contexts/OutletContext";
+import { useOutlets } from "@/hooks/useOutlets";
 import {
   Select,
   SelectContent,
@@ -11,32 +11,17 @@ import {
 } from "@/components/ui/select";
 import { Store } from "lucide-react";
 
-interface Outlet {
-  id: string;
-  name: string;
-}
-
 const OutletSelector = () => {
   const { user } = useAuth();
   const { selectedOutletId, setSelectedOutletId } = useOutlet();
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const { data: outlets = [] } = useOutlets();
 
   useEffect(() => {
     if (!user) return;
-    const fetchOutlets = async () => {
-      const { data } = await supabase
-        .from("outlets")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
-      if (data && data.length > 0) {
-        setOutlets(data);
-        // Default to "all" if no selection, don't auto-select first outlet
-        if (!selectedOutletId) setSelectedOutletId("all");
-      }
-    };
-    fetchOutlets();
-  }, [user]);
+    if (outlets.length > 0 && !selectedOutletId) {
+      setSelectedOutletId("all");
+    }
+  }, [user, outlets, selectedOutletId, setSelectedOutletId]);
 
   if (outlets.length === 0) return null;
 

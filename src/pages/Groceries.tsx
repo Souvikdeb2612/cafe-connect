@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useOutlet } from "@/contexts/OutletContext";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  useGroceries,
+  useCreateGrocery,
+  useUpdateGrocery,
+  useDeleteGrocery,
+} from "@/hooks/useGroceries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +44,10 @@ const Groceries = () => {
   const { selectedOutletId } = useOutlet();
   const { user, isAdmin, roles } = useAuth();
   const { toast } = useToast();
-  const [purchases, setPurchases] = useState<GroceryPurchase[]>([]);
+  const { data: purchases = [] } = useGroceries(selectedOutletId);
+  const createGrocery = useCreateGrocery();
+  const updateGrocery = useUpdateGrocery();
+  const deleteGrocery = useDeleteGrocery();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<GroceryPurchase | null>(null);
   const [form, setForm] = useState({
@@ -52,19 +60,6 @@ const Groceries = () => {
   });
 
   const canEdit = isAdmin || roles.includes("outlet_manager");
-
-  useEffect(() => {
-    if (selectedOutletId) fetchPurchases();
-  }, [selectedOutletId]);
-
-  const fetchPurchases = async () => {
-    const { data } = await supabase
-      .from("grocery_purchases")
-      .select("*")
-      .eq("outlet_id", selectedOutletId)
-      .order("date", { ascending: false });
-    setPurchases(data || []);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,43 +74,31 @@ const Groceries = () => {
       created_by: user?.id,
     };
 
-    if (editing) {
-      const { error } = await supabase
-        .from("grocery_purchases")
-        .update(payload)
-        .eq("id", editing.id);
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
+    try {
+      if (editing) {
+        await updateGrocery.mutateAsync({ ...payload, id: editing.id });
+        toast({ title: "Purchase updated successfully" });
+      } else {
+        await createGrocery.mutateAsync(payload);
+        toast({ title: "Purchase added successfully" });
       }
-    } else {
-      const { error } = await supabase
-        .from("grocery_purchases")
-        .insert(payload);
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      setDialogOpen(false);
+      setEditing(null);
+      setForm({
+        item_name: "",
+        quantity: "",
+        unit: "",
+        cost: "",
+        date: format(new Date(), "yyyy-MM-dd"),
+        notes: "",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
     }
-    setDialogOpen(false);
-    setEditing(null);
-    setForm({
-      item_name: "",
-      quantity: "",
-      unit: "",
-      cost: "",
-      date: format(new Date(), "yyyy-MM-dd"),
-      notes: "",
-    });
-    fetchPurchases();
   };
 
   const handleEdit = (p: GroceryPurchase) => {
@@ -132,8 +115,16 @@ const Groceries = () => {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("grocery_purchases").delete().eq("id", id);
-    fetchPurchases();
+    try {
+      await deleteGrocery.mutateAsync(id);
+      toast({ title: "Purchase deleted successfully" });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

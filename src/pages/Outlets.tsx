@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { useAllOutlets, useCreateOutlet, useUpdateOutlet } from "@/hooks/useOutlets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,7 +34,9 @@ interface Outlet {
 
 const Outlets = () => {
   const { toast } = useToast();
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const { data: outlets = [] } = useAllOutlets();
+  const createOutlet = useCreateOutlet();
+  const updateOutlet = useUpdateOutlet();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Outlet | null>(null);
   const [form, setForm] = useState({
@@ -44,45 +46,27 @@ const Outlets = () => {
     is_active: true,
   });
 
-  useEffect(() => {
-    fetchOutlets();
-  }, []);
-
-  const fetchOutlets = async () => {
-    const { data } = await supabase.from("outlets").select("*").order("name");
-    setOutlets(data || []);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editing) {
-      const { error } = await supabase
-        .from("outlets")
-        .update(form)
-        .eq("id", editing.id);
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
+    try {
+      if (editing) {
+        await updateOutlet.mutateAsync({
+          id: editing.id,
+          payload: form,
         });
-        return;
+      } else {
+        await createOutlet.mutateAsync(form);
       }
-    } else {
-      const { error } = await supabase.from("outlets").insert(form);
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      setDialogOpen(false);
+      setEditing(null);
+      setForm({ name: "", address: "", phone: "", is_active: true });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
     }
-    setDialogOpen(false);
-    setEditing(null);
-    setForm({ name: "", address: "", phone: "", is_active: true });
-    fetchOutlets();
   };
 
   const handleEdit = (o: Outlet) => {

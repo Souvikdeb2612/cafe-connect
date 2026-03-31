@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOutlets } from "@/hooks/useOutlets";
+import { useUsers, useUpdateUserRoles, useUpdateUserOutlets } from "@/hooks/useUsers";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -48,89 +48,16 @@ interface Outlet {
 const UserManagement = () => {
   const { toast } = useToast();
   const { user: currentUser, loading: authLoading } = useAuth();
-  const [users, setUsers] = useState<UserWithRole[]>([]);
-  const [outlets, setOutlets] = useState<Outlet[]>([]);
+  const { data: outlets = [], isLoading: outletsLoading } = useOutlets();
+  const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers();
+  const updateUserRoles = useUpdateUserRoles();
+  const updateUserOutlets = useUpdateUserOutlets();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [newRole, setNewRole] = useState("");
   const [selectedOutlets, setSelectedOutlets] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!authLoading && currentUser) {
-      fetchUsers();
-      fetchOutlets();
-    }
-  }, [authLoading, currentUser]);
-
-  const fetchOutlets = async () => {
-    const { data } = await supabase
-      .from("outlets")
-      .select("id, name")
-      .eq("is_active", true)
-      .order("name");
-    setOutlets(data || []);
-  };
-
-  const fetchUsers = async () => {
-    setLoading(true);
-
-    // Fetch all profiles
-    const { data: profiles, error: profilesError } = await supabase
-      .from("profiles")
-      .select("id, full_name, email");
-
-    // Fetch all roles (includes users who may not have profiles yet)
-    const { data: roles, error: rolesError } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
-
-    const { data: userOutlets, error: outletsError } = await supabase
-      .from("user_outlets")
-      .select("user_id, outlet_id");
-
-    if (profilesError || rolesError) {
-      console.error("Error fetching data:", { profilesError, rolesError });
-      toast({
-        title: "Error loading users",
-        description: profilesError?.message || rolesError?.message,
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Create a map of profiles for quick lookup
-    const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
-
-    // Get all unique user IDs from roles (this includes users without profiles)
-    const allUserIds = [...new Set((roles || []).map((r) => r.user_id))];
-
-    console.log("Profiles:", profiles);
-    console.log("ProfileMap:", Array.from(profileMap.entries()));
-    console.log("All user IDs from roles:", allUserIds);
-
-    // Build user list from all user IDs, merging with profile data when available
-    const enriched: UserWithRole[] = allUserIds.map((userId) => {
-      const profile = profileMap.get(userId);
-      console.log(`User ${userId}:`, { profile, found: !!profile });
-      return {
-        id: userId,
-        email: profile?.email || "",
-        full_name: profile?.full_name || "",
-        roles: (roles || [])
-          .filter((r) => r.user_id === userId)
-          .map((r) => r.role),
-        outlet_ids: (userOutlets || [])
-          .filter((uo) => uo.user_id === userId)
-          .map((uo) => uo.outlet_id),
-      };
-    });
-
-    console.log("Enriched users:", enriched);
-    setUsers(enriched);
-    setLoading(false);
-  };
+  const loading = authLoading || usersLoading || outletsLoading;
 
   const handleManage = (u: UserWithRole) => {
     setSelectedUser(u);
@@ -142,28 +69,28 @@ const UserManagement = () => {
   const handleSave = async () => {
     if (!selectedUser) return;
 
-    // Update role
-    await supabase.from("user_roles").delete().eq("user_id", selectedUser.id);
-    if (newRole) {
-      await supabase
-        .from("user_roles")
-        .insert({ user_id: selectedUser.id, role: newRole });
-    }
+    try {
+      // Update role
+      await updateUserRoles.mutateAsync({
+        userId: selectedUser.id,
+        role: newRole,
+      });
 
-    // Update outlet assignments
-    await supabase.from("user_outlets").delete().eq("user_id", selectedUser.id);
-    if (selectedOutlets.length > 0) {
-      await supabase.from("user_outlets").insert(
-        selectedOutlets.map((oid) => ({
-          user_id: selectedUser.id,
-          outlet_id: oid,
-        })),
-      );
-    }
+      // Update outlet assignments
+      await updateUserOutlets.mutateAsync({
+        userId: selectedUser.id,
+        outletIds: selectedOutlets,
+      });
 
-    setDialogOpen(false);
-    fetchUsers();
-    toast({ title: "User updated" });
+      setDialogOpen(false);
+      toast({ title: "User updated" });
+    } catch (error) {
+      toast({
+        title: "Error updating user",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
   };
 
   const toggleOutlet = (outletId: string) => {
@@ -181,7 +108,7 @@ const UserManagement = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={fetchUsers}
+          onClick={() => window.location.reload()}
           disabled={loading}
         >
           <RefreshCw
@@ -211,6 +138,15 @@ const UserManagement = () => {
                     className="text-center text-muted-foreground py-8"
                   >
                     Loading users...
+                  </TableCell>
+                </TableRow>
+              ) : usersError ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-destructive py-8"
+                  >
+                    Error loading users: {usersError.message}
                   </TableCell>
                 </TableRow>
               ) : users.length === 0 ? (

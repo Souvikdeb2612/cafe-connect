@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useOutlet } from "@/contexts/OutletContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSales, useCreateSale } from "@/hooks/useSales";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,8 +49,10 @@ const Sales = () => {
   const { selectedOutletId, isAllOutletsSelected } = useOutlet();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [aggregatedSales, setAggregatedSales] = useState<AggregatedSale[]>([]);
+  const { data: salesData, isLoading } = useSales(selectedOutletId, isAllOutletsSelected);
+  const createSale = useCreateSale();
+  const sales = salesData?.sales || [];
+  const aggregatedSales = salesData?.aggregatedSales || [];
   const [dialogOpen, setDialogOpen] = useState(false);
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [notes, setNotes] = useState("");
@@ -58,64 +60,11 @@ const Sales = () => {
     { item_name: "", quantity: 1, price: 0 },
   ]);
 
-  useEffect(() => {
-    fetchSales();
-  }, [selectedOutletId]);
-
-  const fetchSales = async () => {
-    if (isAllOutletsSelected) {
-      // Fetch aggregated sales by date for all outlets
-      const { data } = await supabase
-        .from("sales")
-        .select("date, total_revenue, outlet_id")
-        .order("date", { ascending: false });
-
-      if (data) {
-        // Aggregate sales by date
-        const grouped = data.reduce(
-          (acc, sale) => {
-            const date = sale.date;
-            if (!acc[date]) {
-              acc[date] = { date, total_revenue: 0, outlet_count: new Set() };
-            }
-            acc[date].total_revenue += Number(sale.total_revenue);
-            acc[date].outlet_count.add(sale.outlet_id);
-            return acc;
-          },
-          {} as Record<
-            string,
-            { date: string; total_revenue: number; outlet_count: Set<string> }
-          >,
-        );
-
-        const aggregated = Object.values(grouped)
-          .map((g) => ({
-            date: g.date,
-            total_revenue: g.total_revenue,
-            outlet_count: g.outlet_count.size,
-          }))
-          .sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-          );
-
-        setAggregatedSales(aggregated);
-      }
-    } else {
-      // Fetch individual sales for specific outlet
-      const { data } = await supabase
-        .from("sales")
-        .select("*, sale_items(*)")
-        .eq("outlet_id", selectedOutletId!)
-        .order("date", { ascending: false });
-      setSales(data || []);
-    }
-  };
-
   const addItem = () =>
     setItems([...items, { item_name: "", quantity: 1, price: 0 }]);
   const removeItem = (i: number) =>
     setItems(items.filter((_, idx) => idx !== i));
-  const updateItem = (i: number, field: keyof SaleItem, value: any) => {
+  const updateItem = (i: number, field: keyof SaleItem, value: string | number) => {
     const updated = [...items];
     updated[i] = { ...updated[i], [field]: value };
     setItems(updated);
@@ -141,40 +90,27 @@ const Sales = () => {
       return;
     }
 
-    const { data: sale, error } = await supabase
-      .from("sales")
-      .insert({
+    try {
+      await createSale.mutateAsync({
         outlet_id: selectedOutletId,
         date,
         total_revenue: totalRevenue,
         notes,
         created_by: user?.id,
-      })
-      .select()
-      .single();
+        items: validItems,
+      });
 
-    if (error) {
+      setDialogOpen(false);
+      setItems([{ item_name: "", quantity: 1, price: 0 }]);
+      setNotes("");
+      toast({ title: "Sale recorded successfully" });
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
-      return;
     }
-
-    await supabase.from("sale_items").insert(
-      validItems.map((it) => ({
-        sale_id: sale.id,
-        item_name: it.item_name,
-        quantity: it.quantity,
-        price: it.price,
-      })),
-    );
-
-    setDialogOpen(false);
-    setItems([{ item_name: "", quantity: 1, price: 0 }]);
-    setNotes("");
-    fetchSales();
   };
 
   return (
