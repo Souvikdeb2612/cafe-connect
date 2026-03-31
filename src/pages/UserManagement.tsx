@@ -82,10 +82,10 @@ const UserManagement = () => {
 
     if (profilesError) {
       console.error("Error fetching profiles:", profilesError);
-      toast({ 
-        title: "Error loading users", 
+      toast({
+        title: "Error loading users",
         description: profilesError.message,
-        variant: "destructive" 
+        variant: "destructive",
       });
       setLoading(false);
       return;
@@ -132,14 +132,12 @@ const UserManagement = () => {
     // Update outlet assignments
     await supabase.from("user_outlets").delete().eq("user_id", selectedUser.id);
     if (selectedOutlets.length > 0) {
-      await supabase
-        .from("user_outlets")
-        .insert(
-          selectedOutlets.map((oid) => ({
-            user_id: selectedUser.id,
-            outlet_id: oid,
-          })),
-        );
+      await supabase.from("user_outlets").insert(
+        selectedOutlets.map((oid) => ({
+          user_id: selectedUser.id,
+          outlet_id: oid,
+        })),
+      );
     }
 
     setDialogOpen(false);
