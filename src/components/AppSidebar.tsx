@@ -112,7 +112,7 @@ const AppSidebar = () => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar-background border-r border-sidebar-border transition-transform md:translate-x-0 md:static md:z-auto",
+          "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar-background border-r border-sidebar-border transition-transform md:translate-x-0 md:static md:z-auto shadow-xl shadow-black/30",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
