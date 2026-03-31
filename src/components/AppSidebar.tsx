@@ -36,10 +36,10 @@ const AppSidebar = () => {
 
   const linkClass = (path: string) =>
     cn(
-      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
       location.pathname === path
-        ? "bg-sidebar-accent text-sidebar-primary"
-        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+        ? "bg-primary/15 text-primary border-l-2 border-primary shadow-sm shadow-primary/10"
+        : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground border-l-2 border-transparent"
     );
 
   const sidebarContent = (
