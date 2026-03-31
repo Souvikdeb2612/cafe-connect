@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { useAllOutlets, useCreateOutlet, useUpdateOutlet } from "@/hooks/useOutlets";
+import {
+  useAllOutlets,
+  useCreateOutlet,
+  useUpdateOutlet,
+} from "@/hooks/useOutlets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,7 +67,8 @@ const Outlets = () => {
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description:
+          error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     }

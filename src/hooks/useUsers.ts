@@ -121,7 +121,7 @@ const updateUserOutlets = async ({
       outletIds.map((outletId) => ({
         user_id: userId,
         outlet_id: outletId,
-      }))
+      })),
     );
 
     if (insertError) throw insertError;

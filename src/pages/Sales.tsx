@@ -49,7 +49,10 @@ const Sales = () => {
   const { selectedOutletId, isAllOutletsSelected } = useOutlet();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { data: salesData, isLoading } = useSales(selectedOutletId, isAllOutletsSelected);
+  const { data: salesData, isLoading } = useSales(
+    selectedOutletId,
+    isAllOutletsSelected,
+  );
   const createSale = useCreateSale();
   const sales = salesData?.sales || [];
   const aggregatedSales = salesData?.aggregatedSales || [];
@@ -64,7 +67,11 @@ const Sales = () => {
     setItems([...items, { item_name: "", quantity: 1, price: 0 }]);
   const removeItem = (i: number) =>
     setItems(items.filter((_, idx) => idx !== i));
-  const updateItem = (i: number, field: keyof SaleItem, value: string | number) => {
+  const updateItem = (
+    i: number,
+    field: keyof SaleItem,
+    value: string | number,
+  ) => {
     const updated = [...items];
     updated[i] = { ...updated[i], [field]: value };
     setItems(updated);
@@ -107,7 +114,8 @@ const Sales = () => {
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description:
+          error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
     }

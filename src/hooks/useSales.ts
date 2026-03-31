@@ -33,7 +33,7 @@ interface CreateSalePayload {
 // Fetch sales - returns different shapes based on outlet selection
 const fetchSales = async (
   selectedOutletId: string | null,
-  isAllOutletsSelected: boolean
+  isAllOutletsSelected: boolean,
 ): Promise<{ sales: Sale[]; aggregatedSales: AggregatedSale[] }> => {
   if (isAllOutletsSelected) {
     // Fetch aggregated sales by date for all outlets
@@ -59,7 +59,7 @@ const fetchSales = async (
         {} as Record<
           string,
           { date: string; total_revenue: number; outlet_count: Set<string> }
-        >
+        >,
       );
 
       const aggregated = Object.values(grouped)
@@ -69,7 +69,7 @@ const fetchSales = async (
           outlet_count: g.outlet_count.size,
         }))
         .sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
         );
 
       return { sales: [], aggregatedSales: aggregated };
@@ -110,7 +110,7 @@ const createSale = async (payload: CreateSalePayload): Promise<void> => {
         item_name: it.item_name,
         quantity: it.quantity,
         price: it.price,
-      }))
+      })),
     );
 
     if (itemsError) throw itemsError;
@@ -120,7 +120,7 @@ const createSale = async (payload: CreateSalePayload): Promise<void> => {
 // Hook for fetching sales
 export const useSales = (
   selectedOutletId: string | null,
-  isAllOutletsSelected: boolean
+  isAllOutletsSelected: boolean,
 ) => {
   return useQuery({
     queryKey: ["sales", selectedOutletId],

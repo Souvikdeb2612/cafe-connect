@@ -35,7 +35,9 @@ interface UpdateGroceryPayload {
 }
 
 // Fetch grocery purchases for an outlet
-const fetchGroceries = async (selectedOutletId: string | null): Promise<GroceryPurchase[]> => {
+const fetchGroceries = async (
+  selectedOutletId: string | null,
+): Promise<GroceryPurchase[]> => {
   const { data, error } = await supabase
     .from("grocery_purchases")
     .select("*")
@@ -64,7 +66,10 @@ const updateGrocery = async (payload: UpdateGroceryPayload): Promise<void> => {
 
 // Delete grocery purchase
 const deleteGrocery = async (id: string): Promise<void> => {
-  const { error } = await supabase.from("grocery_purchases").delete().eq("id", id);
+  const { error } = await supabase
+    .from("grocery_purchases")
+    .delete()
+    .eq("id", id);
   if (error) throw error;
 };
 

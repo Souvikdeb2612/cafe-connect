@@ -1,6 +1,10 @@
 import { useOutlet } from "@/contexts/OutletContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDashboardKPIs, useMonthlySales, useOutletComparison } from "@/hooks/useDashboard";
+import {
+  useDashboardKPIs,
+  useMonthlySales,
+  useOutletComparison,
+} from "@/hooks/useDashboard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -32,16 +36,12 @@ const Dashboard = () => {
 
   const { data: kpiData, isLoading: kpiLoading } = useDashboardKPIs(
     selectedOutletId,
-    isAllOutletsSelected
+    isAllOutletsSelected,
   );
-  const { data: monthlySalesData, isLoading: monthlySalesLoading } = useMonthlySales(
-    selectedOutletId,
-    isAllOutletsSelected
-  );
-  const { data: outletComparisonData, isLoading: outletComparisonLoading } = useOutletComparison(
-    isAdmin,
-    selectedOutletId
-  );
+  const { data: monthlySalesData, isLoading: monthlySalesLoading } =
+    useMonthlySales(selectedOutletId, isAllOutletsSelected);
+  const { data: outletComparisonData, isLoading: outletComparisonLoading } =
+    useOutletComparison(isAdmin, selectedOutletId);
 
   const loading = kpiLoading || monthlySalesLoading || outletComparisonLoading;
 

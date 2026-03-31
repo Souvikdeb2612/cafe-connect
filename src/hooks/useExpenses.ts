@@ -47,7 +47,9 @@ const fetchCategories = async (): Promise<Category[]> => {
 };
 
 // Fetch expenses for an outlet
-const fetchExpenses = async (selectedOutletId: string | null): Promise<Expense[]> => {
+const fetchExpenses = async (
+  selectedOutletId: string | null,
+): Promise<Expense[]> => {
   const { data, error } = await supabase
     .from("expenses")
     .select("*, categories(name)")

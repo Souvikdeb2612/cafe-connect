@@ -27,7 +27,7 @@ const CUTOFF_DATE = "2026-03-24";
 // Fetch dashboard KPIs
 const fetchDashboardKPIs = async (
   selectedOutletId: string | null,
-  isAllOutletsSelected: boolean
+  isAllOutletsSelected: boolean,
 ): Promise<DashboardKPIs> => {
   const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date()), "yyyy-MM-dd");
@@ -101,24 +101,24 @@ const fetchDashboardKPIs = async (
   return {
     monthSales: (sales.data || []).reduce(
       (s, r) => s + Number(r.total_revenue),
-      0
+      0,
     ),
     monthExpenses: (expenses.data || []).reduce(
       (s, r) => s + Number(r.amount),
-      0
+      0,
     ),
     monthGrocery: (grocery.data || []).reduce((s, r) => s + Number(r.cost), 0),
     totalSales: (allSales.data || []).reduce(
       (s, r) => s + Number(r.total_revenue),
-      0
+      0,
     ),
     totalExpenses: (allExpenses.data || []).reduce(
       (s, r) => s + Number(r.amount),
-      0
+      0,
     ),
     totalGrocery: (allGrocery.data || []).reduce(
       (s, r) => s + Number(r.cost),
-      0
+      0,
     ),
   };
 };
@@ -126,7 +126,7 @@ const fetchDashboardKPIs = async (
 // Fetch monthly sales trend (6 months)
 const fetchMonthlySales = async (
   selectedOutletId: string | null,
-  isAllOutletsSelected: boolean
+  isAllOutletsSelected: boolean,
 ): Promise<MonthlySalesData[]> => {
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = subMonths(new Date(), 5 - i);
@@ -154,12 +154,9 @@ const fetchMonthlySales = async (
 
       return {
         name: m.label,
-        revenue: (data || []).reduce(
-          (s, r) => s + Number(r.total_revenue),
-          0
-        ),
+        revenue: (data || []).reduce((s, r) => s + Number(r.total_revenue), 0),
       };
-    })
+    }),
   );
 
   return results;
@@ -191,12 +188,9 @@ const fetchOutletComparison = async (): Promise<OutletComparisonData[]> => {
 
       return {
         name: o.name,
-        revenue: (data || []).reduce(
-          (s, r) => s + Number(r.total_revenue),
-          0
-        ),
+        revenue: (data || []).reduce((s, r) => s + Number(r.total_revenue), 0),
       };
-    })
+    }),
   );
 
   return results;
@@ -205,7 +199,7 @@ const fetchOutletComparison = async (): Promise<OutletComparisonData[]> => {
 // Hook for fetching dashboard KPIs
 export const useDashboardKPIs = (
   selectedOutletId: string | null,
-  isAllOutletsSelected: boolean
+  isAllOutletsSelected: boolean,
 ) => {
   return useQuery({
     queryKey: ["dashboard", "kpis", selectedOutletId],
@@ -217,7 +211,7 @@ export const useDashboardKPIs = (
 // Hook for fetching monthly sales trend
 export const useMonthlySales = (
   selectedOutletId: string | null,
-  isAllOutletsSelected: boolean
+  isAllOutletsSelected: boolean,
 ) => {
   return useQuery({
     queryKey: ["dashboard", "monthlySales", selectedOutletId],
@@ -229,7 +223,7 @@ export const useMonthlySales = (
 // Hook for fetching outlet comparison (admin only)
 export const useOutletComparison = (
   isAdmin: boolean,
-  selectedOutletId: string | null
+  selectedOutletId: string | null,
 ) => {
   return useQuery({
     queryKey: ["dashboard", "outletComparison", selectedOutletId],

@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOutlets } from "@/hooks/useOutlets";
-import { useUsers, useUpdateUserRoles, useUpdateUserOutlets } from "@/hooks/useUsers";
+import {
+  useUsers,
+  useUpdateUserRoles,
+  useUpdateUserOutlets,
+} from "@/hooks/useUsers";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -49,7 +53,11 @@ const UserManagement = () => {
   const { toast } = useToast();
   const { user: currentUser, loading: authLoading } = useAuth();
   const { data: outlets = [], isLoading: outletsLoading } = useOutlets();
-  const { data: users = [], isLoading: usersLoading, error: usersError } = useUsers();
+  const {
+    data: users = [],
+    isLoading: usersLoading,
+    error: usersError,
+  } = useUsers();
   const updateUserRoles = useUpdateUserRoles();
   const updateUserOutlets = useUpdateUserOutlets();
   const [dialogOpen, setDialogOpen] = useState(false);

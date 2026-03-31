@@ -38,7 +38,9 @@ const fetchAllOutlets = async (): Promise<OutletAdmin[]> => {
 };
 
 // Create outlet
-const createOutlet = async (payload: Omit<OutletAdmin, "id">): Promise<void> => {
+const createOutlet = async (
+  payload: Omit<OutletAdmin, "id">,
+): Promise<void> => {
   const { error } = await supabase.from("outlets").insert(payload);
   if (error) throw error;
 };
