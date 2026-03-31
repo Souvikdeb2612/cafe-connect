@@ -37,91 +37,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     let mounted = true;
-    let initialized = false;
 
-    const initializeAuth = async () => {
-      try {
-        // Primary: fetch current session immediately
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-
-        if (!mounted) return;
-
-        if (error) {
-          console.error("Failed to get session:", error);
-          if (!initialized) {
-            initialized = true;
-            setSession(null);
-            setUser(null);
-            setRoles([]);
-            setLoading(false);
-          }
-          return;
-        }
-
-        if (!initialized) {
-          initialized = true;
-          setSession(session);
-          setUser(session?.user ?? null);
-          if (session?.user) {
-            try {
-              await fetchRoles(session.user.id);
-            } catch (e) {
-              console.error("Failed to fetch roles:", e);
-            }
-          }
-          setLoading(false);
-        }
-      } catch (e) {
-        console.error("Auth initialization error:", e);
-        if (mounted && !initialized) {
-          initialized = true;
-          setSession(null);
-          setUser(null);
-          setRoles([]);
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeAuth();
-
-    // Secondary: listen for subsequent auth changes (sign-in, sign-out, token refresh)
+    // Set up auth state listener FIRST
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return;
 
-      // Skip the initial event — already handled by getSession above
-      if (!initialized) {
-        initialized = true;
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        // Use setTimeout to avoid Supabase auth deadlock
+        setTimeout(async () => {
+          if (!mounted) return;
           try {
             await fetchRoles(session.user.id);
           } catch (e) {
             console.error("Failed to fetch roles:", e);
           }
-        } else {
-          setRoles([]);
-        }
+          if (mounted) setLoading(false);
+        }, 0);
+      } else {
+        setRoles([]);
         setLoading(false);
-        return;
       }
-      // Subsequent auth events
+    });
+
+    // Then get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        try {
-          await fetchRoles(session.user.id);
-        } catch (e) {
-          console.error("Failed to fetch roles:", e);
-        }
+        fetchRoles(session.user.id)
+          .catch((e) => console.error("Failed to fetch roles:", e))
+          .finally(() => {
+            if (mounted) setLoading(false);
+          });
       } else {
-        setRoles([]);
+        setLoading(false);
       }
     });
 
