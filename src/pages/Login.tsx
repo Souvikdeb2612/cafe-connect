@@ -31,7 +31,7 @@ const Login = () => {
         password,
         options: {
           data: { full_name: fullName },
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: import.meta.env.VITE_APP_URL || window.location.origin,
         },
       });
       if (error) {
