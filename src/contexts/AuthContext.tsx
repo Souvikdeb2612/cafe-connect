@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -32,58 +26,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
-    setRoles((data || []).map((r: { role: string }) => r.role as AppRole));
+    setRoles((data || []).map((r: any) => r.role as AppRole));
   };
 
   useEffect(() => {
-    let mounted = true;
-
-    // Set up auth state listener FIRST
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted) return;
-
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        // Use setTimeout to avoid Supabase auth deadlock
-        setTimeout(async () => {
-          if (!mounted) return;
-          try {
-            await fetchRoles(session.user.id);
-          } catch (e) {
-            console.error("Failed to fetch roles:", e);
-          }
-          if (mounted) setLoading(false);
-        }, 0);
-      } else {
-        setRoles([]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          setTimeout(() => fetchRoles(session.user.id), 0);
+        } else {
+          setRoles([]);
+        }
         setLoading(false);
       }
-    });
+    );
 
-    // Then get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchRoles(session.user.id)
-          .catch((e) => console.error("Failed to fetch roles:", e))
-          .finally(() => {
-            if (mounted) setLoading(false);
-          });
-      } else {
-        setLoading(false);
+        fetchRoles(session.user.id);
       }
+      setLoading(false);
     });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {

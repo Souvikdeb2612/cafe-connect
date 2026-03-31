@@ -3,22 +3,15 @@ import { createContext, useContext, useState, ReactNode } from "react";
 interface OutletContextType {
   selectedOutletId: string | null;
   setSelectedOutletId: (id: string | null) => void;
-  isAllOutletsSelected: boolean;
 }
 
 const OutletContext = createContext<OutletContextType | undefined>(undefined);
 
 export const OutletProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedOutletId, setSelectedOutletId] = useState<string | null>(
-    "all",
-  );
-
-  const isAllOutletsSelected = selectedOutletId === "all";
+  const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
 
   return (
-    <OutletContext.Provider
-      value={{ selectedOutletId, setSelectedOutletId, isAllOutletsSelected }}
-    >
+    <OutletContext.Provider value={{ selectedOutletId, setSelectedOutletId }}>
       {children}
     </OutletContext.Provider>
   );
