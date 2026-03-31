@@ -11,13 +11,15 @@ import { Coffee } from "lucide-react";
 
 const Login = () => {
   const { user, loading: authLoading } = useAuth();
-  if (authLoading) return null;
-  if (user) return <Navigate to="/" replace />;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  if (authLoading) return null;
+  if (user) return <Navigate to="/" replace />;
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
