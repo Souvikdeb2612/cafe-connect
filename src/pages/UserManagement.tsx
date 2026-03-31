@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,17 +47,21 @@ interface Outlet {
 
 const UserManagement = () => {
   const { toast } = useToast();
+  const { user: currentUser, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
   const [newRole, setNewRole] = useState("");
   const [selectedOutlets, setSelectedOutlets] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchUsers();
-    fetchOutlets();
-  }, []);
+    if (!authLoading && currentUser) {
+      fetchUsers();
+      fetchOutlets();
+    }
+  }, [authLoading, currentUser]);
 
   const fetchOutlets = async () => {
     const { data } = await supabase
@@ -68,10 +73,23 @@ const UserManagement = () => {
   };
 
   const fetchUsers = async () => {
-    const { data: profiles } = await supabase
+    setLoading(true);
+
+    // Fetch all profiles (which should contain all users via trigger)
+    const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("id, full_name, email");
-    if (!profiles) return;
+
+    if (profilesError) {
+      console.error("Error fetching profiles:", profilesError);
+      toast({ 
+        title: "Error loading users", 
+        description: profilesError.message,
+        variant: "destructive" 
+      });
+      setLoading(false);
+      return;
+    }
 
     const { data: roles } = await supabase
       .from("user_roles")
@@ -80,7 +98,7 @@ const UserManagement = () => {
       .from("user_outlets")
       .select("user_id, outlet_id");
 
-    const enriched = profiles.map((p) => ({
+    const enriched = (profiles || []).map((p) => ({
       id: p.id,
       email: p.email || "",
       full_name: p.full_name || "",
@@ -90,6 +108,7 @@ const UserManagement = () => {
         .map((uo) => uo.outlet_id),
     }));
     setUsers(enriched);
+    setLoading(false);
   };
 
   const handleManage = (u: UserWithRole) => {
@@ -153,7 +172,16 @@ const UserManagement = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-muted-foreground py-8"
+                  >
+                    Loading users...
+                  </TableCell>
+                </TableRow>
+              ) : users.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={5}
