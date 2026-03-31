@@ -20,7 +20,6 @@ const Login = () => {
 
   if (authLoading) return null;
   if (user) return <Navigate to="/" replace />;
-  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
