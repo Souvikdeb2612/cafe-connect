@@ -56,7 +56,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Safety net: if onAuthStateChange doesn't fire within 3s, stop loading
     const timeout = setTimeout(() => {
       setLoading((prev) => {
-        if (prev) console.warn("Auth initialization timed out, forcing load complete");
+        if (prev)
+          console.warn("Auth initialization timed out, forcing load complete");
         return false;
       });
     }, 3000);
