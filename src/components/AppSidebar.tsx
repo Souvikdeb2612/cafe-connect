@@ -36,10 +36,10 @@ const AppSidebar = () => {
 
   const linkClass = (path: string) =>
     cn(
-      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
       location.pathname === path
-        ? "bg-sidebar-accent text-sidebar-primary"
-        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+        ? "bg-primary/15 text-primary border-l-2 border-primary shadow-sm shadow-primary/10"
+        : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground border-l-2 border-transparent"
     );
 
   const sidebarContent = (
@@ -112,7 +112,7 @@ const AppSidebar = () => {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar-background border-r border-sidebar-border transition-transform md:translate-x-0 md:static md:z-auto",
+          "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar-background border-r border-sidebar-border transition-transform md:translate-x-0 md:static md:z-auto shadow-xl shadow-black/30",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
