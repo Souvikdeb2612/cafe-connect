@@ -36,9 +36,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    let initialized = false;
+
+    // Primary: fetch current session immediately
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (initialized) return;
+      initialized = true;
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        try {
+          await fetchRoles(session.user.id);
+        } catch (e) {
+          console.error("Failed to fetch roles:", e);
+        }
+      }
+      setLoading(false);
+    });
+
+    // Secondary: listen for subsequent auth changes (sign-in, sign-out, token refresh)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      // Skip the initial event — already handled by getSession above
+      if (!initialized) {
+        initialized = true;
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          try {
+            await fetchRoles(session.user.id);
+          } catch (e) {
+            console.error("Failed to fetch roles:", e);
+          }
+        } else {
+          setRoles([]);
+        }
+        setLoading(false);
+        return;
+      }
+      // Subsequent auth events
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -50,22 +87,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setRoles([]);
       }
-      setLoading(false);
     });
 
-    // Safety net: if onAuthStateChange doesn't fire within 3s, stop loading
-    const timeout = setTimeout(() => {
-      setLoading((prev) => {
-        if (prev)
-          console.warn("Auth initialization timed out, forcing load complete");
-        return false;
-      });
-    }, 3000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signOut = async () => {
