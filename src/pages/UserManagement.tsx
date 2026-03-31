@@ -80,6 +80,9 @@ const UserManagement = () => {
       .from("profiles")
       .select("id, full_name, email");
 
+    console.log("Profiles fetched:", profiles);
+    console.log("Profiles error:", profilesError);
+
     if (profilesError) {
       console.error("Error fetching profiles:", profilesError);
       toast({
@@ -91,12 +94,17 @@ const UserManagement = () => {
       return;
     }
 
-    const { data: roles } = await supabase
+    const { data: roles, error: rolesError } = await supabase
       .from("user_roles")
       .select("user_id, role");
-    const { data: userOutlets } = await supabase
+    
+    const { data: userOutlets, error: outletsError } = await supabase
       .from("user_outlets")
       .select("user_id, outlet_id");
+
+    console.log("Roles fetched:", roles, "Error:", rolesError);
+    console.log("UserOutlets fetched:", userOutlets, "Error:", outletsError);
+    console.log("Profiles count:", profiles?.length);
 
     const enriched = (profiles || []).map((p) => ({
       id: p.id,
@@ -107,6 +115,8 @@ const UserManagement = () => {
         .filter((uo) => uo.user_id === p.id)
         .map((uo) => uo.outlet_id),
     }));
+    
+    console.log("Enriched users:", enriched);
     setUsers(enriched);
     setLoading(false);
   };

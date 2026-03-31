@@ -131,10 +131,19 @@ const Sales = () => {
       return;
     }
 
+    if (isAllOutletsSelected || !selectedOutletId) {
+      toast({
+        title: "Please select a specific outlet",
+        description: "Sales must be recorded for a specific outlet, not 'All Outlets'",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { data: sale, error } = await supabase
       .from("sales")
       .insert({
-        outlet_id: selectedOutletId!,
+        outlet_id: selectedOutletId,
         date,
         total_revenue: totalRevenue,
         notes,
