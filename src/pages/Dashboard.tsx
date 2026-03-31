@@ -97,32 +97,22 @@ const Dashboard = () => {
           .gte("date", monthStart)
           .lte("date", monthEnd);
 
-    const allSalesQuery = isAllOutletsSelected
-      ? supabase.from("sales").select("total_revenue").gte("date", CUTOFF_DATE)
-      : supabase
-          .from("sales")
-          .select("total_revenue")
-          .eq("outlet_id", selectedOutletId!)
-          .gte("date", CUTOFF_DATE);
+    // Always fetch aggregated data across all outlets for cash calculation
+    // (Available Cash is a centralized metric, not outlet-specific)
+    const allSalesQuery = supabase
+      .from("sales")
+      .select("total_revenue")
+      .gte("date", CUTOFF_DATE);
 
-    const allExpensesQuery = isAllOutletsSelected
-      ? supabase.from("expenses").select("amount").gte("date", CUTOFF_DATE)
-      : supabase
-          .from("expenses")
-          .select("amount")
-          .eq("outlet_id", selectedOutletId!)
-          .gte("date", CUTOFF_DATE);
+    const allExpensesQuery = supabase
+      .from("expenses")
+      .select("amount")
+      .gte("date", CUTOFF_DATE);
 
-    const allGroceryQuery = isAllOutletsSelected
-      ? supabase
-          .from("grocery_purchases")
-          .select("cost")
-          .gte("date", CUTOFF_DATE)
-      : supabase
-          .from("grocery_purchases")
-          .select("cost")
-          .eq("outlet_id", selectedOutletId!)
-          .gte("date", CUTOFF_DATE);
+    const allGroceryQuery = supabase
+      .from("grocery_purchases")
+      .select("cost")
+      .gte("date", CUTOFF_DATE);
 
     const [sales, expenses, grocery, allSales, allExpenses, allGrocery] =
       await Promise.all([
@@ -284,66 +274,54 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Overview for {format(new Date(), "MMMM yyyy")}
-          {isAllOutletsSelected ? " — All Outlets" : ""}
-        </p>
+    <div className="space-y-4 sm:space-y-6">
+      <header className="flex flex-row items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1">
+            Overview for {format(new Date(), "MMMM yyyy")}
+            {isAllOutletsSelected ? " — All Outlets" : ""}
+          </p>
+        </div>
+        <div
+          className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800"
+          aria-label={`Available funds: ₹${availableCash.toLocaleString()}`}
+        >
+          <Wallet
+            className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+            aria-hidden="true"
+          />
+          {loading ? (
+            <Skeleton className="h-4 w-16" />
+          ) : (
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              ₹{availableCash.toLocaleString()}
+            </span>
+          )}
+        </div>
       </header>
 
       <section
         aria-label="Key metrics"
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4"
       >
         {kpis.map((kpi) => (
           <KPICard key={kpi.title} {...kpi} loading={loading} />
         ))}
       </section>
 
-      {/* Available Cash - only shown when All Outlets is selected (centralized data) */}
-      {isAllOutletsSelected && (
-        <section
-          aria-label="Cash position"
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Available Cash
-              </CardTitle>
-              <Wallet
-                className={`h-5 w-5 ${availableCash >= 0 ? "text-emerald-500" : "text-destructive"}`}
-                aria-hidden="true"
-              />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-24" />
-              ) : (
-                <div
-                  className="text-2xl font-bold"
-                  aria-label={`Available Cash: ₹${availableCash.toLocaleString()}`}
-                >
-                  ₹{availableCash.toLocaleString()}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Monthly Revenue Trend</CardTitle>
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="text-sm sm:text-base">
+              Monthly Revenue Trend
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <Skeleton className="h-[280px] w-full" />
+              <Skeleton className="h-[200px] sm:h-[280px] w-full" />
             ) : monthlySales.length === 0 ? (
-              <div className="h-[280px] flex flex-col items-center justify-center text-center text-muted-foreground">
+              <div className="h-[200px] sm:h-[280px] flex flex-col items-center justify-center text-center text-muted-foreground">
                 <TrendingUp
                   className="h-10 w-10 mb-3 opacity-50"
                   aria-hidden="true"
@@ -354,8 +332,11 @@ const Dashboard = () => {
                 </p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={monthlySales}>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart
+                  data={monthlySales}
+                  margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+                >
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke="hsl(var(--border))"
@@ -363,9 +344,14 @@ const Dashboard = () => {
                   <XAxis
                     dataKey="name"
                     stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
+                    fontSize={10}
+                    tickMargin={5}
                   />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    tickFormatter={(value) => `₹${value / 1000}k`}
+                  />
                   <Tooltip
                     formatter={(value: number) => [
                       `₹${value.toLocaleString()}`,
@@ -387,16 +373,16 @@ const Dashboard = () => {
 
         {isAdmin && (
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
+            <CardHeader className="pb-2 sm:pb-4">
+              <CardTitle className="text-sm sm:text-base">
                 Outlet Comparison (This Month)
               </CardTitle>
             </CardHeader>
             <CardContent>
               {loading ? (
-                <Skeleton className="h-[280px] w-full" />
+                <Skeleton className="h-[200px] sm:h-[280px] w-full" />
               ) : outletComparison.length === 0 ? (
-                <div className="h-[280px] flex flex-col items-center justify-center text-center text-muted-foreground">
+                <div className="h-[200px] sm:h-[280px] flex flex-col items-center justify-center text-center text-muted-foreground">
                   <Store
                     className="h-10 w-10 mb-3 opacity-50"
                     aria-hidden="true"
@@ -407,8 +393,11 @@ const Dashboard = () => {
                   </p>
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={outletComparison}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart
+                    data={outletComparison}
+                    margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+                  >
                     <CartesianGrid
                       strokeDasharray="3 3"
                       stroke="hsl(var(--border))"
@@ -416,11 +405,13 @@ const Dashboard = () => {
                     <XAxis
                       dataKey="name"
                       stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
+                      fontSize={10}
+                      tickMargin={5}
                     />
                     <YAxis
                       stroke="hsl(var(--muted-foreground))"
-                      fontSize={12}
+                      fontSize={10}
+                      tickFormatter={(value) => `₹${value / 1000}k`}
                     />
                     <Tooltip
                       formatter={(value: number) => [

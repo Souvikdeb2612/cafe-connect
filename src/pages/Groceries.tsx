@@ -5,8 +5,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -29,7 +42,14 @@ const Groceries = () => {
   const [purchases, setPurchases] = useState<GroceryPurchase[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<GroceryPurchase | null>(null);
-  const [form, setForm] = useState({ item_name: "", quantity: "", unit: "", cost: "", date: format(new Date(), "yyyy-MM-dd"), notes: "" });
+  const [form, setForm] = useState({
+    item_name: "",
+    quantity: "",
+    unit: "",
+    cost: "",
+    date: format(new Date(), "yyyy-MM-dd"),
+    notes: "",
+  });
 
   const canEdit = isAdmin || roles.includes("outlet_manager");
 
@@ -60,21 +80,54 @@ const Groceries = () => {
     };
 
     if (editing) {
-      const { error } = await supabase.from("grocery_purchases").update(payload).eq("id", editing.id);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      const { error } = await supabase
+        .from("grocery_purchases")
+        .update(payload)
+        .eq("id", editing.id);
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
     } else {
-      const { error } = await supabase.from("grocery_purchases").insert(payload);
-      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      const { error } = await supabase
+        .from("grocery_purchases")
+        .insert(payload);
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
     }
     setDialogOpen(false);
     setEditing(null);
-    setForm({ item_name: "", quantity: "", unit: "", cost: "", date: format(new Date(), "yyyy-MM-dd"), notes: "" });
+    setForm({
+      item_name: "",
+      quantity: "",
+      unit: "",
+      cost: "",
+      date: format(new Date(), "yyyy-MM-dd"),
+      notes: "",
+    });
     fetchPurchases();
   };
 
   const handleEdit = (p: GroceryPurchase) => {
     setEditing(p);
-    setForm({ item_name: p.item_name, quantity: String(p.quantity), unit: p.unit || "", cost: String(p.cost), date: p.date, notes: p.notes || "" });
+    setForm({
+      item_name: p.item_name,
+      quantity: String(p.quantity),
+      unit: p.unit || "",
+      cost: String(p.cost),
+      date: p.date,
+      notes: p.notes || "",
+    });
     setDialogOpen(true);
   };
 
@@ -84,53 +137,98 @@ const Groceries = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Grocery Purchases</h1>
-        <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Grocery Purchases</h1>
+        <Dialog
+          open={dialogOpen}
+          onOpenChange={(o) => {
+            setDialogOpen(o);
+            if (!o) setEditing(null);
+          }}
+        >
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Add Purchase</Button>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Purchase
+            </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editing ? "Edit Purchase" : "New Purchase"}</DialogTitle>
+              <DialogTitle>
+                {editing ? "Edit Purchase" : "New Purchase"}
+              </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Item Name</Label>
-                  <Input value={form.item_name} onChange={(e) => setForm({ ...form, item_name: e.target.value })} required />
+                  <Input
+                    value={form.item_name}
+                    onChange={(e) =>
+                      setForm({ ...form, item_name: e.target.value })
+                    }
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Date</Label>
-                  <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+                  <Input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Quantity</Label>
-                  <Input type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} required />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.quantity}
+                    onChange={(e) =>
+                      setForm({ ...form, quantity: e.target.value })
+                    }
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Unit</Label>
-                  <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg, pcs, etc." />
+                  <Input
+                    value={form.unit}
+                    onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                    placeholder="kg, pcs, etc."
+                  />
                 </div>
                 <div className="space-y-2 col-span-2">
                   <Label>Cost (₹)</Label>
-                  <Input type="number" step="0.01" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} required />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.cost}
+                    onChange={(e) => setForm({ ...form, cost: e.target.value })}
+                    required
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Notes</Label>
-                <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+                <Input
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
               </div>
-              <Button type="submit" className="w-full">{editing ? "Update" : "Add"} Purchase</Button>
+              <Button type="submit" className="w-full">
+                {editing ? "Update" : "Add"} Purchase
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
 
       <Card>
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -143,20 +241,43 @@ const Groceries = () => {
             </TableHeader>
             <TableBody>
               {purchases.length === 0 ? (
-                <TableRow><TableCell colSpan={canEdit ? 6 : 5} className="text-center text-muted-foreground py-8">No purchases yet</TableCell></TableRow>
+                <TableRow>
+                  <TableCell
+                    colSpan={canEdit ? 6 : 5}
+                    className="text-center text-muted-foreground py-8"
+                  >
+                    No purchases yet
+                  </TableCell>
+                </TableRow>
               ) : (
                 purchases.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell>{format(new Date(p.date), "dd MMM yyyy")}</TableCell>
+                    <TableCell>
+                      {format(new Date(p.date), "dd MMM yyyy")}
+                    </TableCell>
                     <TableCell className="font-medium">{p.item_name}</TableCell>
                     <TableCell>{p.quantity}</TableCell>
                     <TableCell>{p.unit}</TableCell>
-                    <TableCell className="text-right">₹{Number(p.cost).toLocaleString()}</TableCell>
+                    <TableCell className="text-right">
+                      ₹{Number(p.cost).toLocaleString()}
+                    </TableCell>
                     {canEdit && (
                       <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(p)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(p.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </TableCell>
                     )}

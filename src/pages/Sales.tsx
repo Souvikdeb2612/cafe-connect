@@ -152,16 +152,14 @@ const Sales = () => {
       return;
     }
 
-    await supabase
-      .from("sale_items")
-      .insert(
-        validItems.map((it) => ({
-          sale_id: sale.id,
-          item_name: it.item_name,
-          quantity: it.quantity,
-          price: it.price,
-        })),
-      );
+    await supabase.from("sale_items").insert(
+      validItems.map((it) => ({
+        sale_id: sale.id,
+        item_name: it.item_name,
+        quantity: it.quantity,
+        price: it.price,
+      })),
+    );
 
     setDialogOpen(false);
     setItems([{ item_name: "", quantity: 1, price: 0 }]);
@@ -170,10 +168,10 @@ const Sales = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Sales</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Sales</h1>
           {isAllOutletsSelected && (
             <p className="text-muted-foreground text-sm">
               Viewing aggregated sales from all outlets
@@ -187,7 +185,7 @@ const Sales = () => {
               New Sale
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Record Sale</DialogTitle>
             </DialogHeader>
@@ -280,8 +278,8 @@ const Sales = () => {
       </div>
 
       <Card>
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[400px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>

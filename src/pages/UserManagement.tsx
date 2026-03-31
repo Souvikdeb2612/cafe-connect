@@ -3,9 +3,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2 } from "lucide-react";
@@ -40,23 +59,35 @@ const UserManagement = () => {
   }, []);
 
   const fetchOutlets = async () => {
-    const { data } = await supabase.from("outlets").select("id, name").eq("is_active", true).order("name");
+    const { data } = await supabase
+      .from("outlets")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name");
     setOutlets(data || []);
   };
 
   const fetchUsers = async () => {
-    const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, email");
     if (!profiles) return;
 
-    const { data: roles } = await supabase.from("user_roles").select("user_id, role");
-    const { data: userOutlets } = await supabase.from("user_outlets").select("user_id, outlet_id");
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("user_id, role");
+    const { data: userOutlets } = await supabase
+      .from("user_outlets")
+      .select("user_id, outlet_id");
 
     const enriched = profiles.map((p) => ({
       id: p.id,
       email: p.email || "",
       full_name: p.full_name || "",
       roles: (roles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
-      outlet_ids: (userOutlets || []).filter((uo) => uo.user_id === p.id).map((uo) => uo.outlet_id),
+      outlet_ids: (userOutlets || [])
+        .filter((uo) => uo.user_id === p.id)
+        .map((uo) => uo.outlet_id),
     }));
     setUsers(enriched);
   };
@@ -74,15 +105,22 @@ const UserManagement = () => {
     // Update role
     await supabase.from("user_roles").delete().eq("user_id", selectedUser.id);
     if (newRole) {
-      await supabase.from("user_roles").insert({ user_id: selectedUser.id, role: newRole });
+      await supabase
+        .from("user_roles")
+        .insert({ user_id: selectedUser.id, role: newRole });
     }
 
     // Update outlet assignments
     await supabase.from("user_outlets").delete().eq("user_id", selectedUser.id);
     if (selectedOutlets.length > 0) {
-      await supabase.from("user_outlets").insert(
-        selectedOutlets.map((oid) => ({ user_id: selectedUser.id, outlet_id: oid }))
-      );
+      await supabase
+        .from("user_outlets")
+        .insert(
+          selectedOutlets.map((oid) => ({
+            user_id: selectedUser.id,
+            outlet_id: oid,
+          })),
+        );
     }
 
     setDialogOpen(false);
@@ -92,17 +130,19 @@ const UserManagement = () => {
 
   const toggleOutlet = (outletId: string) => {
     setSelectedOutlets((prev) =>
-      prev.includes(outletId) ? prev.filter((id) => id !== outletId) : [...prev, outletId]
+      prev.includes(outletId)
+        ? prev.filter((id) => id !== outletId)
+        : [...prev, outletId],
     );
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">User Management</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-xl sm:text-2xl font-bold">User Management</h1>
 
       <Card>
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[500px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -114,15 +154,28 @@ const UserManagement = () => {
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No users found</TableCell></TableRow>
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-muted-foreground py-8"
+                  >
+                    No users found
+                  </TableCell>
+                </TableRow>
               ) : (
                 users.map((u) => (
                   <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
+                    <TableCell className="font-medium">
+                      {u.full_name || "—"}
+                    </TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell>
                       {u.roles.map((r) => (
-                        <Badge key={r} variant={r === "admin" ? "default" : "secondary"} className="mr-1">
+                        <Badge
+                          key={r}
+                          variant={r === "admin" ? "default" : "secondary"}
+                          className="mr-1"
+                        >
                           {r}
                         </Badge>
                       ))}
@@ -130,10 +183,19 @@ const UserManagement = () => {
                     <TableCell className="text-sm text-muted-foreground">
                       {u.roles.includes("admin")
                         ? "All"
-                        : outlets.filter((o) => u.outlet_ids.includes(o.id)).map((o) => o.name).join(", ") || "None"}
+                        : outlets
+                            .filter((o) => u.outlet_ids.includes(o.id))
+                            .map((o) => o.name)
+                            .join(", ") || "None"}
                     </TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm" onClick={() => handleManage(u)}>Manage</Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleManage(u)}
+                      >
+                        Manage
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -144,15 +206,19 @@ const UserManagement = () => {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Manage {selectedUser?.full_name || selectedUser?.email}</DialogTitle>
+            <DialogTitle>
+              Manage {selectedUser?.full_name || selectedUser?.email}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Role</Label>
               <Select value={newRole} onValueChange={setNewRole}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="outlet_manager">Outlet Manager</SelectItem>
@@ -178,7 +244,9 @@ const UserManagement = () => {
               </div>
             )}
 
-            <Button onClick={handleSave} className="w-full">Save Changes</Button>
+            <Button onClick={handleSave} className="w-full">
+              Save Changes
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
