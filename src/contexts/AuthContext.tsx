@@ -42,14 +42,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchRoles(session.user.id);
+        try {
+          await fetchRoles(session.user.id);
+        } catch (e) {
+          console.error("Failed to fetch roles:", e);
+        }
       } else {
         setRoles([]);
       }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Safety net: if onAuthStateChange doesn't fire within 3s, stop loading
+    const timeout = setTimeout(() => {
+      setLoading((prev) => {
+        if (prev) console.warn("Auth initialization timed out, forcing load complete");
+        return false;
+      });
+    }, 3000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const signOut = async () => {
