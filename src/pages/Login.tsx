@@ -5,7 +5,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Coffee } from "lucide-react";
 
@@ -31,18 +37,33 @@ const Login = () => {
         password,
         options: {
           data: { full_name: fullName },
-          emailRedirectTo: import.meta.env.VITE_APP_URL || window.location.origin,
+          emailRedirectTo:
+            import.meta.env.VITE_APP_URL || window.location.origin,
         },
       });
       if (error) {
-        toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
+        toast({
+          title: "Sign up failed",
+          description: error.message,
+          variant: "destructive",
+        });
       } else {
-        toast({ title: "Check your email", description: "We sent you a confirmation link." });
+        toast({
+          title: "Check your email",
+          description: "We sent you a confirmation link.",
+        });
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       if (error) {
-        toast({ title: "Login failed", description: error.message, variant: "destructive" });
+        toast({
+          title: "Login failed",
+          description: error.message,
+          variant: "destructive",
+        });
       }
     }
     setLoading(false);
@@ -57,7 +78,9 @@ const Login = () => {
           </div>
           <CardTitle className="text-2xl font-bold">Cafe Manager</CardTitle>
           <CardDescription>
-            {isSignUp ? "Create an account to get started" : "Sign in to your account"}
+            {isSignUp
+              ? "Create an account to get started"
+              : "Sign in to your account"}
           </CardDescription>
         </CardHeader>
         <CardContent>
