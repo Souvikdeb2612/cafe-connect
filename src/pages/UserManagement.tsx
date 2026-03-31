@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -74,49 +74,52 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-
-    // Fetch all profiles (which should contain all users via trigger)
+  
+    // Fetch all profiles
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
       .select("id, full_name, email");
-
-    console.log("Profiles fetched:", profiles);
-    console.log("Profiles error:", profilesError);
-
-    if (profilesError) {
-      console.error("Error fetching profiles:", profilesError);
+  
+    // Fetch all roles (includes users who may not have profiles yet)
+    const { data: roles, error: rolesError } = await supabase
+      .from("user_roles")
+      .select("user_id, role");
+      
+    const { data: userOutlets, error: outletsError } = await supabase
+      .from("user_outlets")
+      .select("user_id, outlet_id");
+  
+    if (profilesError || rolesError) {
+      console.error("Error fetching data:", { profilesError, rolesError });
       toast({
         title: "Error loading users",
-        description: profilesError.message,
+        description: profilesError?.message || rolesError?.message,
         variant: "destructive",
       });
       setLoading(false);
       return;
     }
-
-    const { data: roles, error: rolesError } = await supabase
-      .from("user_roles")
-      .select("user_id, role");
-
-    const { data: userOutlets, error: outletsError } = await supabase
-      .from("user_outlets")
-      .select("user_id, outlet_id");
-
-    console.log("Roles fetched:", roles, "Error:", rolesError);
-    console.log("UserOutlets fetched:", userOutlets, "Error:", outletsError);
-    console.log("Profiles count:", profiles?.length);
-
-    const enriched = (profiles || []).map((p) => ({
-      id: p.id,
-      email: p.email || "",
-      full_name: p.full_name || "",
-      roles: (roles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
-      outlet_ids: (userOutlets || [])
-        .filter((uo) => uo.user_id === p.id)
-        .map((uo) => uo.outlet_id),
-    }));
-
-    console.log("Enriched users:", enriched);
+  
+    // Create a map of profiles for quick lookup
+    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+  
+    // Get all unique user IDs from roles (this includes users without profiles)
+    const allUserIds = [...new Set((roles || []).map(r => r.user_id))];
+  
+    // Build user list from all user IDs, merging with profile data when available
+    const enriched: UserWithRole[] = allUserIds.map(userId => {
+      const profile = profileMap.get(userId);
+      return {
+        id: userId,
+        email: profile?.email || "",
+        full_name: profile?.full_name || "",
+        roles: (roles || []).filter((r) => r.user_id === userId).map((r) => r.role),
+        outlet_ids: (userOutlets || [])
+          .filter((uo) => uo.user_id === userId)
+          .map((uo) => uo.outlet_id),
+      };
+    });
+      
     setUsers(enriched);
     setLoading(false);
   };
@@ -165,7 +168,13 @@ const UserManagement = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <h1 className="text-xl sm:text-2xl font-bold">User Management</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl sm:text-2xl font-bold">User Management</h1>
+        <Button variant="outline" size="sm" onClick={fetchUsers} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
 
       <Card>
         <CardContent className="p-0 overflow-x-auto">
@@ -280,6 +289,17 @@ const UserManagement = () => {
               </div>
             )}
 
+            <Button onClick={handleSave} className="w-full">
+              Save Changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default UserManagement;
             <Button onClick={handleSave} className="w-full">
               Save Changes
             </Button>
