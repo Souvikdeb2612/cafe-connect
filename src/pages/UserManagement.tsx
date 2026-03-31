@@ -97,7 +97,7 @@ const UserManagement = () => {
     const { data: roles, error: rolesError } = await supabase
       .from("user_roles")
       .select("user_id, role");
-    
+
     const { data: userOutlets, error: outletsError } = await supabase
       .from("user_outlets")
       .select("user_id, outlet_id");
@@ -115,7 +115,7 @@ const UserManagement = () => {
         .filter((uo) => uo.user_id === p.id)
         .map((uo) => uo.outlet_id),
     }));
-    
+
     console.log("Enriched users:", enriched);
     setUsers(enriched);
     setLoading(false);
