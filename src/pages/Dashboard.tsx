@@ -5,9 +5,32 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { DollarSign, ShoppingBasket, Receipt, TrendingUp, Wallet, Plus } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DollarSign,
+  ShoppingBasket,
+  Receipt,
+  TrendingUp,
+  Wallet,
+  Plus,
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from "recharts";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { toast } from "sonner";
 
@@ -54,10 +77,19 @@ const Dashboard = () => {
       supabase.from("grocery_purchases").select("cost"),
       supabase.from("capital_additions").select("amount"),
     ]);
-    const s = (sales.data || []).reduce((sum, r) => sum + Number(r.total_revenue), 0);
-    const e = (expenses.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
+    const s = (sales.data || []).reduce(
+      (sum, r) => sum + Number(r.total_revenue),
+      0,
+    );
+    const e = (expenses.data || []).reduce(
+      (sum, r) => sum + Number(r.amount),
+      0,
+    );
     const g = (grocery.data || []).reduce((sum, r) => sum + Number(r.cost), 0);
-    const c = (capital.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
+    const c = (capital.data || []).reduce(
+      (sum, r) => sum + Number(r.amount),
+      0,
+    );
     setTotalFunds(s - e - g + c);
   };
 
@@ -85,47 +117,88 @@ const Dashboard = () => {
   };
 
   const fetchKPIs = async () => {
-    let salesQ = supabase.from("sales").select("total_revenue").eq("date", today);
-    let expensesQ = supabase.from("expenses").select("amount").eq("date", today);
-    let groceryQ = supabase.from("grocery_purchases").select("cost").eq("date", today);
+    let salesQ = supabase
+      .from("sales")
+      .select("total_revenue")
+      .eq("date", today);
+    let expensesQ = supabase
+      .from("expenses")
+      .select("amount")
+      .eq("date", today);
+    let groceryQ = supabase
+      .from("grocery_purchases")
+      .select("cost")
+      .eq("date", today);
 
     const [sales, expenses, grocery] = await Promise.all([
       applyOutletFilter(salesQ),
       applyOutletFilter(expensesQ),
       applyOutletFilter(groceryQ),
     ]);
-    setTodaySales((sales.data || []).reduce((s, r) => s + Number(r.total_revenue), 0));
-    setTodayExpenses((expenses.data || []).reduce((s, r) => s + Number(r.amount), 0));
-    setTodayGrocery((grocery.data || []).reduce((s, r) => s + Number(r.cost), 0));
+    setTodaySales(
+      (sales.data || []).reduce((s, r) => s + Number(r.total_revenue), 0),
+    );
+    setTodayExpenses(
+      (expenses.data || []).reduce((s, r) => s + Number(r.amount), 0),
+    );
+    setTodayGrocery(
+      (grocery.data || []).reduce((s, r) => s + Number(r.cost), 0),
+    );
   };
 
   const fetchMonthlySales = async () => {
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = subMonths(new Date(), 5 - i);
-      return { start: format(startOfMonth(d), "yyyy-MM-dd"), end: format(endOfMonth(d), "yyyy-MM-dd"), label: format(d, "MMM") };
+      return {
+        start: format(startOfMonth(d), "yyyy-MM-dd"),
+        end: format(endOfMonth(d), "yyyy-MM-dd"),
+        label: format(d, "MMM"),
+      };
     });
 
     const results = await Promise.all(
       months.map(async (m) => {
-        let q = supabase.from("sales").select("total_revenue").gte("date", m.start).lte("date", m.end);
+        let q = supabase
+          .from("sales")
+          .select("total_revenue")
+          .gte("date", m.start)
+          .lte("date", m.end);
         const { data } = await applyOutletFilter(q);
-        return { name: m.label, revenue: (data || []).reduce((s, r) => s + Number(r.total_revenue), 0) };
-      })
+        return {
+          name: m.label,
+          revenue: (data || []).reduce(
+            (s, r) => s + Number(r.total_revenue),
+            0,
+          ),
+        };
+      }),
     );
     setMonthlySales(results);
   };
 
   const fetchOutletComparison = async () => {
-    const { data: outlets } = await supabase.from("outlets").select("id, name").eq("is_active", true);
+    const { data: outlets } = await supabase
+      .from("outlets")
+      .select("id, name")
+      .eq("is_active", true);
     if (!outlets) return;
 
     const results = await Promise.all(
       outlets.map(async (o) => {
         const { data } = await supabase
-          .from("sales").select("total_revenue").eq("outlet_id", o.id)
-          .gte("date", monthStart).lte("date", monthEnd);
-        return { name: o.name, revenue: (data || []).reduce((s, r) => s + Number(r.total_revenue), 0) };
-      })
+          .from("sales")
+          .select("total_revenue")
+          .eq("outlet_id", o.id)
+          .gte("date", monthStart)
+          .lte("date", monthEnd);
+        return {
+          name: o.name,
+          revenue: (data || []).reduce(
+            (s, r) => s + Number(r.total_revenue),
+            0,
+          ),
+        };
+      }),
     );
     setOutletComparison(results);
   };
@@ -133,10 +206,30 @@ const Dashboard = () => {
   const profit = todaySales - todayExpenses - todayGrocery;
 
   const kpis = [
-    { title: "Today's Sales", value: todaySales, icon: DollarSign, color: "text-primary" },
-    { title: "Grocery Costs", value: todayGrocery, icon: ShoppingBasket, color: "text-accent" },
-    { title: "Expenses", value: todayExpenses, icon: Receipt, color: "text-destructive" },
-    { title: "Profit", value: profit, icon: TrendingUp, color: profit >= 0 ? "text-accent" : "text-destructive" },
+    {
+      title: "Today's Sales",
+      value: todaySales,
+      icon: DollarSign,
+      color: "text-primary",
+    },
+    {
+      title: "Grocery Costs",
+      value: todayGrocery,
+      icon: ShoppingBasket,
+      color: "text-accent",
+    },
+    {
+      title: "Expenses",
+      value: todayExpenses,
+      icon: Receipt,
+      color: "text-destructive",
+    },
+    {
+      title: "Profit",
+      value: profit,
+      icon: TrendingUp,
+      color: profit >= 0 ? "text-accent" : "text-destructive",
+    },
   ];
 
   return (
@@ -149,10 +242,14 @@ const Dashboard = () => {
           onClick={() => setCapitalModalOpen(true)}
           className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 shadow-sm hover:bg-muted transition-colors cursor-pointer"
         >
-          <Wallet className="h-4 w-4 text-primary" />
-          <div className="text-left">
-            <p className="text-[10px] text-muted-foreground leading-tight">Total Funds</p>
-            <p className={`text-sm font-bold ${totalFunds >= 0 ? "text-accent" : "text-destructive"}`}>
+          {/* <Wallet className="h-4 w-4 text-primary" /> */}
+          <div className="flex gap-2">
+            <p className="text-[10px] text-muted-foreground leading-tight">
+              Total Funds
+            </p>
+            <p
+              className={`text-sm font-bold ${totalFunds >= 0 ? "text-accent" : "text-destructive"}`}
+            >
               ₹{totalFunds.toLocaleString()}
             </p>
           </div>
@@ -164,11 +261,15 @@ const Dashboard = () => {
         {kpis.map((kpi) => (
           <Card key={kpi.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {kpi.title}
+              </CardTitle>
               <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{kpi.value.toLocaleString()}</div>
+              <div className="text-2xl font-bold">
+                ₹{kpi.value.toLocaleString()}
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -182,11 +283,24 @@ const Dashboard = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={monthlySales}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <Tooltip />
-                <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: "hsl(var(--primary))" }} />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={{ fill: "hsl(var(--primary))" }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -195,16 +309,29 @@ const Dashboard = () => {
         {isAdmin && isAll && outletComparison.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Outlet Comparison (This Month)</CardTitle>
+              <CardTitle className="text-base">
+                Outlet Comparison (This Month)
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={outletComparison}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                  />
+                  <XAxis
+                    dataKey="name"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                  />
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                   <Tooltip />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="revenue"
+                    fill="hsl(var(--primary))"
+                    radius={[4, 4, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -219,7 +346,9 @@ const Dashboard = () => {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
-              <label className="text-sm font-medium text-foreground">Amount (₹)</label>
+              <label className="text-sm font-medium text-foreground">
+                Amount (₹)
+              </label>
               <Input
                 type="number"
                 placeholder="Enter amount"
@@ -229,7 +358,9 @@ const Dashboard = () => {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground">Note (optional)</label>
+              <label className="text-sm font-medium text-foreground">
+                Note (optional)
+              </label>
               <Input
                 placeholder="e.g. Investor funding, personal savings"
                 value={capitalNote}
@@ -238,7 +369,12 @@ const Dashboard = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCapitalModalOpen(false)}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={() => setCapitalModalOpen(false)}
+            >
+              Cancel
+            </Button>
             <Button onClick={handleAddCapital} disabled={submitting}>
               {submitting ? "Adding..." : "Add Capital"}
             </Button>
