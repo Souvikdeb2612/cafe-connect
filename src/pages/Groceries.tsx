@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, parse } from "date-fns";
+import MonthFilter from "@/components/MonthFilter";
 
 interface GroceryPurchase {
   id: string;
