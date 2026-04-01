@@ -48,15 +48,40 @@ const Dashboard = () => {
   };
 
   const fetchTotalFunds = async () => {
-    const [sales, expenses, grocery] = await Promise.all([
+    const [sales, expenses, grocery, capital] = await Promise.all([
       supabase.from("sales").select("total_revenue"),
       supabase.from("expenses").select("amount"),
       supabase.from("grocery_purchases").select("cost"),
+      supabase.from("capital_additions").select("amount"),
     ]);
     const s = (sales.data || []).reduce((sum, r) => sum + Number(r.total_revenue), 0);
     const e = (expenses.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
     const g = (grocery.data || []).reduce((sum, r) => sum + Number(r.cost), 0);
-    setTotalFunds(s - e - g);
+    const c = (capital.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
+    setTotalFunds(s - e - g + c);
+  };
+
+  const handleAddCapital = async () => {
+    const amount = parseFloat(capitalAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.from("capital_additions").insert({
+      amount,
+      note: capitalNote || null,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error("Failed to add capital: " + error.message);
+      return;
+    }
+    toast.success("Capital added successfully");
+    setCapitalAmount("");
+    setCapitalNote("");
+    setCapitalModalOpen(false);
+    fetchTotalFunds();
   };
 
   const fetchKPIs = async () => {
