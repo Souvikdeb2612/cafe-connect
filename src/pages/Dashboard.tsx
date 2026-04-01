@@ -211,6 +211,40 @@ const Dashboard = () => {
           </Card>
         )}
       </div>
+
+      <Dialog open={capitalModalOpen} onOpenChange={setCapitalModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Capital</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium text-foreground">Amount (₹)</label>
+              <Input
+                type="number"
+                placeholder="Enter amount"
+                value={capitalAmount}
+                onChange={(e) => setCapitalAmount(e.target.value)}
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Note (optional)</label>
+              <Input
+                placeholder="e.g. Investor funding, personal savings"
+                value={capitalNote}
+                onChange={(e) => setCapitalNote(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCapitalModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddCapital} disabled={submitting}>
+              {submitting ? "Adding..." : "Add Capital"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
