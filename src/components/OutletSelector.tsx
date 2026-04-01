@@ -21,7 +21,7 @@ const OutletSelector = () => {
       const { data } = await supabase.from("outlets").select("id, name").eq("is_active", true).order("name");
       if (data && data.length > 0) {
         setOutlets(data);
-        if (!selectedOutletId) setSelectedOutletId(data[0].id);
+        if (!selectedOutletId) setSelectedOutletId("all");
       }
     };
     fetchOutlets();
@@ -37,6 +37,7 @@ const OutletSelector = () => {
           <SelectValue placeholder="Select outlet" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="all">All Outlets</SelectItem>
           {outlets.map((o) => (
             <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
           ))}
