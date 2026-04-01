@@ -30,20 +30,30 @@ const Groceries = () => {
   const [purchases, setPurchases] = useState<GroceryPurchase[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<GroceryPurchase | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [form, setForm] = useState({ item_name: "", quantity: "", unit: "", cost: "", date: format(new Date(), "yyyy-MM-dd"), notes: "" });
 
   const canEdit = isAdmin || roles.includes("outlet_manager");
 
   useEffect(() => {
     if (selectedOutletId) fetchPurchases();
-  }, [selectedOutletId]);
+  }, [selectedOutletId, selectedMonth]);
 
   const fetchPurchases = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("grocery_purchases")
       .select("*")
       .eq("outlet_id", selectedOutletId)
       .order("date", { ascending: false });
+
+    if (selectedMonth !== "all") {
+      const monthDate = parse(selectedMonth, "yyyy-MM", new Date());
+      query = query
+        .gte("date", format(startOfMonth(monthDate), "yyyy-MM-dd"))
+        .lte("date", format(endOfMonth(monthDate), "yyyy-MM-dd"));
+    }
+
+    const { data } = await query;
     setPurchases(data || []);
   };
 
