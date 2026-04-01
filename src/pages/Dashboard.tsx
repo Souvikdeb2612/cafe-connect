@@ -62,7 +62,7 @@ const Dashboard = () => {
     if (!selectedOutletId) return;
     fetchKPIs();
     fetchMonthlySales();
-    if (isAdmin && isAll) fetchOutletComparison();
+    fetchMonthlyExpenses();
   }, [selectedOutletId]);
 
   const applyOutletFilter = (query: any) => {
