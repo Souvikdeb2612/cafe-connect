@@ -57,7 +57,21 @@ const Groceries = () => {
     }
 
     const { data } = await query;
-    setPurchases(data || []);
+    
+    if (selectedOutletId === "all" && data) {
+      const grouped: Record<string, GroceryPurchase> = {};
+      data.forEach((p: any) => {
+        const key = `${p.date}_${p.item_name}`;
+        if (!grouped[key]) {
+          grouped[key] = { id: key, date: p.date, item_name: p.item_name, quantity: 0, unit: p.unit, cost: 0, notes: "" };
+        }
+        grouped[key].quantity += Number(p.quantity);
+        grouped[key].cost += Number(p.cost);
+      });
+      setPurchases(Object.values(grouped).sort((a, b) => b.date.localeCompare(a.date)));
+    } else {
+      setPurchases(data || []);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

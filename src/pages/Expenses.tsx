@@ -72,7 +72,20 @@ const Expenses = () => {
     }
 
     const { data } = await query;
-    setExpenses(data || []);
+    
+    if (selectedOutletId === "all" && data) {
+      const grouped: Record<string, Expense> = {};
+      data.forEach((e: any) => {
+        const key = `${e.date}_${e.category_id || "none"}`;
+        if (!grouped[key]) {
+          grouped[key] = { id: key, date: e.date, amount: 0, notes: "", category_id: e.category_id, categories: e.categories };
+        }
+        grouped[key].amount += Number(e.amount);
+      });
+      setExpenses(Object.values(grouped).sort((a, b) => b.date.localeCompare(a.date)));
+    } else {
+      setExpenses(data || []);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
