@@ -145,15 +145,19 @@ const Dashboard = () => {
         <h1 className="text-2xl font-bold">
           Dashboard {isAll ? "— All Outlets" : ""}
         </h1>
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
-          <Wallet className="h-5 w-5 text-primary" />
-          <div>
-            <p className="text-xs text-muted-foreground">Total Funds</p>
-            <p className={`text-lg font-bold ${totalFunds >= 0 ? "text-accent" : "text-destructive"}`}>
+        <button
+          onClick={() => setCapitalModalOpen(true)}
+          className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 shadow-sm hover:bg-muted transition-colors cursor-pointer"
+        >
+          <Wallet className="h-4 w-4 text-primary" />
+          <div className="text-left">
+            <p className="text-[10px] text-muted-foreground leading-tight">Total Funds</p>
+            <p className={`text-sm font-bold ${totalFunds >= 0 ? "text-accent" : "text-destructive"}`}>
               ₹{totalFunds.toLocaleString()}
             </p>
           </div>
-        </div>
+          <Plus className="h-3 w-3 text-muted-foreground ml-1" />
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
