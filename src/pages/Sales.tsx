@@ -33,20 +33,30 @@ const Sales = () => {
   const { toast } = useToast();
   const [sales, setSales] = useState<Sale[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<SaleItem[]>([{ item_name: "", quantity: 1, price: 0 }]);
 
   useEffect(() => {
     if (selectedOutletId) fetchSales();
-  }, [selectedOutletId]);
+  }, [selectedOutletId, selectedMonth]);
 
   const fetchSales = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("sales")
       .select("*, sale_items(*)")
       .eq("outlet_id", selectedOutletId)
       .order("date", { ascending: false });
+
+    if (selectedMonth !== "all") {
+      const monthDate = parse(selectedMonth, "yyyy-MM", new Date());
+      query = query
+        .gte("date", format(startOfMonth(monthDate), "yyyy-MM-dd"))
+        .lte("date", format(endOfMonth(monthDate), "yyyy-MM-dd"));
+    }
+
+    const { data } = await query;
     setSales(data || []);
   };
 
