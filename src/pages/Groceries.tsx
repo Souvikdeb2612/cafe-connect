@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, parse } from "date-fns";
+import MonthFilter from "@/components/MonthFilter";
 
 interface GroceryPurchase {
   id: string;
@@ -29,20 +30,30 @@ const Groceries = () => {
   const [purchases, setPurchases] = useState<GroceryPurchase[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<GroceryPurchase | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [form, setForm] = useState({ item_name: "", quantity: "", unit: "", cost: "", date: format(new Date(), "yyyy-MM-dd"), notes: "" });
 
   const canEdit = isAdmin || roles.includes("outlet_manager");
 
   useEffect(() => {
     if (selectedOutletId) fetchPurchases();
-  }, [selectedOutletId]);
+  }, [selectedOutletId, selectedMonth]);
 
   const fetchPurchases = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("grocery_purchases")
       .select("*")
       .eq("outlet_id", selectedOutletId)
       .order("date", { ascending: false });
+
+    if (selectedMonth !== "all") {
+      const monthDate = parse(selectedMonth, "yyyy-MM", new Date());
+      query = query
+        .gte("date", format(startOfMonth(monthDate), "yyyy-MM-dd"))
+        .lte("date", format(endOfMonth(monthDate), "yyyy-MM-dd"));
+    }
+
+    const { data } = await query;
     setPurchases(data || []);
   };
 
@@ -85,8 +96,11 @@ const Groceries = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Grocery Purchases</h1>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold">Grocery Purchases</h1>
+          <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
+        </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Add Purchase</Button>

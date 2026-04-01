@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, X } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, parse } from "date-fns";
+import MonthFilter from "@/components/MonthFilter";
 
 interface SaleItem {
   item_name: string;
@@ -32,20 +33,30 @@ const Sales = () => {
   const { toast } = useToast();
   const [sales, setSales] = useState<Sale[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<SaleItem[]>([{ item_name: "", quantity: 1, price: 0 }]);
 
   useEffect(() => {
     if (selectedOutletId) fetchSales();
-  }, [selectedOutletId]);
+  }, [selectedOutletId, selectedMonth]);
 
   const fetchSales = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("sales")
       .select("*, sale_items(*)")
       .eq("outlet_id", selectedOutletId)
       .order("date", { ascending: false });
+
+    if (selectedMonth !== "all") {
+      const monthDate = parse(selectedMonth, "yyyy-MM", new Date());
+      query = query
+        .gte("date", format(startOfMonth(monthDate), "yyyy-MM-dd"))
+        .lte("date", format(endOfMonth(monthDate), "yyyy-MM-dd"));
+    }
+
+    const { data } = await query;
     setSales(data || []);
   };
 
@@ -84,8 +95,11 @@ const Sales = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Sales</h1>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold">Sales</h1>
+          <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
+        </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />New Sale</Button>

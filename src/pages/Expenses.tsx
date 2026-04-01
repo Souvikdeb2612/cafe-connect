@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, parse } from "date-fns";
+import MonthFilter from "@/components/MonthFilter";
 
 interface Expense {
   id: string;
@@ -35,6 +36,7 @@ const Expenses = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [form, setForm] = useState({ category_id: "", amount: "", date: format(new Date(), "yyyy-MM-dd"), notes: "" });
 
   const canEdit = isAdmin || roles.includes("outlet_manager");
@@ -45,7 +47,7 @@ const Expenses = () => {
 
   useEffect(() => {
     if (selectedOutletId) fetchExpenses();
-  }, [selectedOutletId]);
+  }, [selectedOutletId, selectedMonth]);
 
   const fetchCategories = async () => {
     const { data } = await supabase.from("categories").select("id, name").eq("type", "expense").order("name");
@@ -53,11 +55,20 @@ const Expenses = () => {
   };
 
   const fetchExpenses = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("expenses")
       .select("*, categories(name)")
       .eq("outlet_id", selectedOutletId)
       .order("date", { ascending: false });
+
+    if (selectedMonth !== "all") {
+      const monthDate = parse(selectedMonth, "yyyy-MM", new Date());
+      query = query
+        .gte("date", format(startOfMonth(monthDate), "yyyy-MM-dd"))
+        .lte("date", format(endOfMonth(monthDate), "yyyy-MM-dd"));
+    }
+
+    const { data } = await query;
     setExpenses(data || []);
   };
 
@@ -98,8 +109,11 @@ const Expenses = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Expenses</h1>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold">Expenses</h1>
+          <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
+        </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Add Expense</Button>
