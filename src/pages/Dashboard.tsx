@@ -242,11 +242,9 @@ const Dashboard = () => {
           onClick={() => setCapitalModalOpen(true)}
           className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 shadow-sm hover:bg-muted transition-colors cursor-pointer"
         >
-          {/* <Wallet className="h-4 w-4 text-primary" /> */}
-          <div className="flex gap-2">
-            <p className="text-[10px] text-muted-foreground leading-tight">
-              Total Funds
-            </p>
+          <Wallet className="h-4 w-4 text-primary" />
+          <div className="text-left">
+            {/* <p className="text-[10px] text-muted-foreground leading-tight">Total Funds</p> */}
             <p
               className={`text-sm font-bold ${totalFunds >= 0 ? "text-accent" : "text-destructive"}`}
             >
