@@ -41,7 +41,7 @@ const Dashboard = () => {
   const [todayExpenses, setTodayExpenses] = useState(0);
   const [todayGrocery, setTodayGrocery] = useState(0);
   const [monthlySales, setMonthlySales] = useState<any[]>([]);
-  const [outletComparison, setOutletComparison] = useState<any[]>([]);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<any[]>([]);
   const [totalFunds, setTotalFunds] = useState(0);
   const [capitalModalOpen, setCapitalModalOpen] = useState(false);
   const [capitalAmount, setCapitalAmount] = useState("");
