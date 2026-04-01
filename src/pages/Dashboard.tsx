@@ -41,7 +41,7 @@ const Dashboard = () => {
   const [todayExpenses, setTodayExpenses] = useState(0);
   const [todayGrocery, setTodayGrocery] = useState(0);
   const [monthlySales, setMonthlySales] = useState<any[]>([]);
-  const [outletComparison, setOutletComparison] = useState<any[]>([]);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<any[]>([]);
   const [totalFunds, setTotalFunds] = useState(0);
   const [capitalModalOpen, setCapitalModalOpen] = useState(false);
   const [capitalAmount, setCapitalAmount] = useState("");
@@ -62,7 +62,7 @@ const Dashboard = () => {
     if (!selectedOutletId) return;
     fetchKPIs();
     fetchMonthlySales();
-    if (isAdmin && isAll) fetchOutletComparison();
+    fetchMonthlyExpenses();
   }, [selectedOutletId]);
 
   const applyOutletFilter = (query: any) => {
@@ -176,31 +176,40 @@ const Dashboard = () => {
     setMonthlySales(results);
   };
 
-  const fetchOutletComparison = async () => {
-    const { data: outlets } = await supabase
-      .from("outlets")
-      .select("id, name")
-      .eq("is_active", true);
-    if (!outlets) return;
+  const fetchMonthlyExpenses = async () => {
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = subMonths(new Date(), 5 - i);
+      return {
+        start: format(startOfMonth(d), "yyyy-MM-dd"),
+        end: format(endOfMonth(d), "yyyy-MM-dd"),
+        label: format(d, "MMM"),
+      };
+    });
 
     const results = await Promise.all(
-      outlets.map(async (o) => {
-        const { data } = await supabase
-          .from("sales")
-          .select("total_revenue")
-          .eq("outlet_id", o.id)
-          .gte("date", monthStart)
-          .lte("date", monthEnd);
+      months.map(async (m) => {
+        let expQ = supabase
+          .from("expenses")
+          .select("amount")
+          .gte("date", m.start)
+          .lte("date", m.end);
+        let groQ = supabase
+          .from("grocery_purchases")
+          .select("cost")
+          .gte("date", m.start)
+          .lte("date", m.end);
+        const [{ data: expData }, { data: groData }] = await Promise.all([
+          applyOutletFilter(expQ),
+          applyOutletFilter(groQ),
+        ]);
         return {
-          name: o.name,
-          revenue: (data || []).reduce(
-            (s, r) => s + Number(r.total_revenue),
-            0,
-          ),
+          name: m.label,
+          expenses: (expData || []).reduce((s, r) => s + Number(r.amount), 0),
+          grocery: (groData || []).reduce((s, r) => s + Number(r.cost), 0),
         };
       }),
     );
-    setOutletComparison(results);
+    setMonthlyExpenses(results);
   };
 
   const profit = todaySales - todayExpenses - todayGrocery;
@@ -304,37 +313,40 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {isAdmin && isAll && outletComparison.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Outlet Comparison (This Month)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={outletComparison}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
-                  />
-                  <XAxis
-                    dataKey="name"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                  />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <Tooltip />
-                  <Bar
-                    dataKey="revenue"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Monthly Expenses Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={monthlyExpenses}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip />
+                <Bar
+                  dataKey="expenses"
+                  fill="hsl(var(--destructive))"
+                  radius={[4, 4, 0, 0]}
+                  name="Expenses"
+                />
+                <Bar
+                  dataKey="grocery"
+                  fill="hsl(var(--accent))"
+                  radius={[4, 4, 0, 0]}
+                  name="Grocery"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={capitalModalOpen} onOpenChange={setCapitalModalOpen}>
