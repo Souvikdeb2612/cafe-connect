@@ -8,11 +8,11 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
-import Groceries from "@/pages/Groceries";
 import Sales from "@/pages/Sales";
 import Expenses from "@/pages/Expenses";
 import Outlets from "@/pages/Outlets";
 import UserManagement from "@/pages/UserManagement";
+import MenuItems from "@/pages/MenuItems";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,11 +34,11 @@ const App = () => (
               }
             >
               <Route path="/" element={<Dashboard />} />
-              <Route path="/groceries" element={<Groceries />} />
               <Route path="/sales" element={<Sales />} />
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/outlets" element={<Outlets />} />
               <Route path="/users" element={<UserManagement />} />
+              <Route path="/menu-items" element={<MenuItems />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -3,7 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import OutletSelector from "./OutletSelector";
 import {
   LayoutDashboard,
-  ShoppingBasket,
   DollarSign,
   Receipt,
   Building2,
@@ -12,6 +11,7 @@ import {
   Coffee,
   Menu,
   X,
+  UtensilsCrossed,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/groceries", icon: ShoppingBasket, label: "Groceries" },
   { to: "/sales", icon: DollarSign, label: "Sales" },
   { to: "/expenses", icon: Receipt, label: "Expenses" },
 ];
@@ -27,6 +26,7 @@ const navItems = [
 const adminItems = [
   { to: "/outlets", icon: Building2, label: "Outlets" },
   { to: "/users", icon: Users, label: "Users" },
+  { to: "/menu-items", icon: UtensilsCrossed, label: "Items & Categories" },
 ];
 
 const AppSidebar = () => {
@@ -94,7 +94,6 @@ const AppSidebar = () => {
 
   return (
     <>
-      {/* Mobile toggle */}
       <Button
         variant="ghost"
         size="icon"
@@ -104,12 +103,10 @@ const AppSidebar = () => {
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
 
-      {/* Mobile overlay */}
       {open && (
         <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar-background border-r border-sidebar-border transition-transform md:translate-x-0 md:static md:z-auto shadow-xl shadow-black/30",

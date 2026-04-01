@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,11 +28,18 @@ interface Sale {
   sale_items: SaleItem[];
 }
 
+interface MenuItem {
+  id: string;
+  name: string;
+  price: number;
+}
+
 const Sales = () => {
   const { selectedOutletId } = useOutlet();
   const { user } = useAuth();
   const { toast } = useToast();
   const [sales, setSales] = useState<Sale[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -39,8 +47,17 @@ const Sales = () => {
   const [items, setItems] = useState<SaleItem[]>([{ item_name: "", quantity: 1, price: 0 }]);
 
   useEffect(() => {
+    fetchMenuItems();
+  }, []);
+
+  useEffect(() => {
     if (selectedOutletId) fetchSales();
   }, [selectedOutletId, selectedMonth]);
+
+  const fetchMenuItems = async () => {
+    const { data } = await supabase.from("menu_items").select("*").eq("is_active", true).order("name");
+    setMenuItems(data || []);
+  };
 
   const fetchSales = async () => {
     let query = supabase
@@ -140,7 +157,18 @@ const Sales = () => {
                 {items.map((item, i) => (
                   <div key={i} className="flex gap-2 items-end">
                     <div className="flex-1">
-                      <Input placeholder="Item name" value={item.item_name} onChange={(e) => updateItem(i, "item_name", e.target.value)} />
+                      <Select value={item.item_name} onValueChange={(val) => {
+                        const menuItem = menuItems.find(m => m.name === val);
+                        updateItem(i, "item_name", val);
+                        if (menuItem) updateItem(i, "price", menuItem.price);
+                      }}>
+                        <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
+                        <SelectContent>
+                          {menuItems.map((m) => (
+                            <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="w-20">
                       <Input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => updateItem(i, "quantity", Number(e.target.value))} />
