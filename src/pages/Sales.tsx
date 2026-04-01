@@ -60,7 +60,20 @@ const Sales = () => {
     }
 
     const { data } = await query;
-    setSales(data || []);
+    
+    if (selectedOutletId === "all" && data) {
+      const grouped: Record<string, Sale> = {};
+      data.forEach((s: any) => {
+        if (!grouped[s.date]) {
+          grouped[s.date] = { id: s.date, date: s.date, total_revenue: 0, notes: "", sale_items: [] };
+        }
+        grouped[s.date].total_revenue += Number(s.total_revenue);
+        grouped[s.date].sale_items.push(...(s.sale_items || []));
+      });
+      setSales(Object.values(grouped).sort((a, b) => b.date.localeCompare(a.date)));
+    } else {
+      setSales(data || []);
+    }
   };
 
   const addItem = () => setItems([...items, { item_name: "", quantity: 1, price: 0 }]);
