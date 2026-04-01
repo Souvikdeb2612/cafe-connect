@@ -313,37 +313,40 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {isAdmin && isAll && outletComparison.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Outlet Comparison (This Month)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={outletComparison}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="hsl(var(--border))"
-                  />
-                  <XAxis
-                    dataKey="name"
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={12}
-                  />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                  <Tooltip />
-                  <Bar
-                    dataKey="revenue"
-                    fill="hsl(var(--primary))"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Monthly Expenses Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={monthlyExpenses}>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                />
+                <XAxis
+                  dataKey="name"
+                  stroke="hsl(var(--muted-foreground))"
+                  fontSize={12}
+                />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <Tooltip />
+                <Bar
+                  dataKey="expenses"
+                  fill="hsl(var(--destructive))"
+                  radius={[4, 4, 0, 0]}
+                  name="Expenses"
+                />
+                <Bar
+                  dataKey="grocery"
+                  fill="hsl(var(--accent))"
+                  radius={[4, 4, 0, 0]}
+                  name="Grocery"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={capitalModalOpen} onOpenChange={setCapitalModalOpen}>
