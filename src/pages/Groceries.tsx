@@ -43,8 +43,11 @@ const Groceries = () => {
     let query = supabase
       .from("grocery_purchases")
       .select("*")
-      .eq("outlet_id", selectedOutletId)
       .order("date", { ascending: false });
+
+    if (selectedOutletId && selectedOutletId !== "all") {
+      query = query.eq("outlet_id", selectedOutletId);
+    }
 
     if (selectedMonth !== "all") {
       const monthDate = parse(selectedMonth, "yyyy-MM", new Date());
