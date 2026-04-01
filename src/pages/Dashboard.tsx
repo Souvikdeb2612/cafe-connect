@@ -20,6 +20,10 @@ const Dashboard = () => {
   const [monthlySales, setMonthlySales] = useState<any[]>([]);
   const [outletComparison, setOutletComparison] = useState<any[]>([]);
   const [totalFunds, setTotalFunds] = useState(0);
+  const [capitalModalOpen, setCapitalModalOpen] = useState(false);
+  const [capitalAmount, setCapitalAmount] = useState("");
+  const [capitalNote, setCapitalNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
