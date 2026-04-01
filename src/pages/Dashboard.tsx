@@ -3,9 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOutlet } from "@/contexts/OutletContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, ShoppingBasket, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DollarSign, ShoppingBasket, Receipt, TrendingUp, Wallet, Plus } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { toast } from "sonner";
 
 const Dashboard = () => {
   const { selectedOutletId } = useOutlet();
