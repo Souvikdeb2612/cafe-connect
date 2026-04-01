@@ -3,9 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOutlet } from "@/contexts/OutletContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, ShoppingBasket, Receipt, TrendingUp, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { DollarSign, ShoppingBasket, Receipt, TrendingUp, Wallet, Plus } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { toast } from "sonner";
 
 const Dashboard = () => {
   const { selectedOutletId } = useOutlet();
@@ -16,6 +20,10 @@ const Dashboard = () => {
   const [monthlySales, setMonthlySales] = useState<any[]>([]);
   const [outletComparison, setOutletComparison] = useState<any[]>([]);
   const [totalFunds, setTotalFunds] = useState(0);
+  const [capitalModalOpen, setCapitalModalOpen] = useState(false);
+  const [capitalAmount, setCapitalAmount] = useState("");
+  const [capitalNote, setCapitalNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const monthStart = format(startOfMonth(new Date()), "yyyy-MM-dd");
@@ -40,15 +48,40 @@ const Dashboard = () => {
   };
 
   const fetchTotalFunds = async () => {
-    const [sales, expenses, grocery] = await Promise.all([
+    const [sales, expenses, grocery, capital] = await Promise.all([
       supabase.from("sales").select("total_revenue"),
       supabase.from("expenses").select("amount"),
       supabase.from("grocery_purchases").select("cost"),
+      supabase.from("capital_additions").select("amount"),
     ]);
     const s = (sales.data || []).reduce((sum, r) => sum + Number(r.total_revenue), 0);
     const e = (expenses.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
     const g = (grocery.data || []).reduce((sum, r) => sum + Number(r.cost), 0);
-    setTotalFunds(s - e - g);
+    const c = (capital.data || []).reduce((sum, r) => sum + Number(r.amount), 0);
+    setTotalFunds(s - e - g + c);
+  };
+
+  const handleAddCapital = async () => {
+    const amount = parseFloat(capitalAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.from("capital_additions").insert({
+      amount,
+      note: capitalNote || null,
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error("Failed to add capital: " + error.message);
+      return;
+    }
+    toast.success("Capital added successfully");
+    setCapitalAmount("");
+    setCapitalNote("");
+    setCapitalModalOpen(false);
+    fetchTotalFunds();
   };
 
   const fetchKPIs = async () => {
@@ -112,15 +145,19 @@ const Dashboard = () => {
         <h1 className="text-2xl font-bold">
           Dashboard {isAll ? "— All Outlets" : ""}
         </h1>
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
-          <Wallet className="h-5 w-5 text-primary" />
-          <div>
-            <p className="text-xs text-muted-foreground">Total Funds</p>
-            <p className={`text-lg font-bold ${totalFunds >= 0 ? "text-accent" : "text-destructive"}`}>
+        <button
+          onClick={() => setCapitalModalOpen(true)}
+          className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 shadow-sm hover:bg-muted transition-colors cursor-pointer"
+        >
+          <Wallet className="h-4 w-4 text-primary" />
+          <div className="text-left">
+            <p className="text-[10px] text-muted-foreground leading-tight">Total Funds</p>
+            <p className={`text-sm font-bold ${totalFunds >= 0 ? "text-accent" : "text-destructive"}`}>
               ₹{totalFunds.toLocaleString()}
             </p>
           </div>
-        </div>
+          <Plus className="h-3 w-3 text-muted-foreground ml-1" />
+        </button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -174,6 +211,40 @@ const Dashboard = () => {
           </Card>
         )}
       </div>
+
+      <Dialog open={capitalModalOpen} onOpenChange={setCapitalModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Capital</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium text-foreground">Amount (₹)</label>
+              <Input
+                type="number"
+                placeholder="Enter amount"
+                value={capitalAmount}
+                onChange={(e) => setCapitalAmount(e.target.value)}
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Note (optional)</label>
+              <Input
+                placeholder="e.g. Investor funding, personal savings"
+                value={capitalNote}
+                onChange={(e) => setCapitalNote(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCapitalModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddCapital} disabled={submitting}>
+              {submitting ? "Adding..." : "Add Capital"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
