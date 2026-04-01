@@ -28,11 +28,18 @@ interface Sale {
   sale_items: SaleItem[];
 }
 
+interface MenuItem {
+  id: string;
+  name: string;
+  price: number;
+}
+
 const Sales = () => {
   const { selectedOutletId } = useOutlet();
   const { user } = useAuth();
   const { toast } = useToast();
   const [sales, setSales] = useState<Sale[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -40,8 +47,17 @@ const Sales = () => {
   const [items, setItems] = useState<SaleItem[]>([{ item_name: "", quantity: 1, price: 0 }]);
 
   useEffect(() => {
+    fetchMenuItems();
+  }, []);
+
+  useEffect(() => {
     if (selectedOutletId) fetchSales();
   }, [selectedOutletId, selectedMonth]);
+
+  const fetchMenuItems = async () => {
+    const { data } = await supabase.from("menu_items").select("*").eq("is_active", true).order("name");
+    setMenuItems(data || []);
+  };
 
   const fetchSales = async () => {
     let query = supabase
