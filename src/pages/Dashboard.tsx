@@ -176,31 +176,40 @@ const Dashboard = () => {
     setMonthlySales(results);
   };
 
-  const fetchOutletComparison = async () => {
-    const { data: outlets } = await supabase
-      .from("outlets")
-      .select("id, name")
-      .eq("is_active", true);
-    if (!outlets) return;
+  const fetchMonthlyExpenses = async () => {
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = subMonths(new Date(), 5 - i);
+      return {
+        start: format(startOfMonth(d), "yyyy-MM-dd"),
+        end: format(endOfMonth(d), "yyyy-MM-dd"),
+        label: format(d, "MMM"),
+      };
+    });
 
     const results = await Promise.all(
-      outlets.map(async (o) => {
-        const { data } = await supabase
-          .from("sales")
-          .select("total_revenue")
-          .eq("outlet_id", o.id)
-          .gte("date", monthStart)
-          .lte("date", monthEnd);
+      months.map(async (m) => {
+        let expQ = supabase
+          .from("expenses")
+          .select("amount")
+          .gte("date", m.start)
+          .lte("date", m.end);
+        let groQ = supabase
+          .from("grocery_purchases")
+          .select("cost")
+          .gte("date", m.start)
+          .lte("date", m.end);
+        const [{ data: expData }, { data: groData }] = await Promise.all([
+          applyOutletFilter(expQ),
+          applyOutletFilter(groQ),
+        ]);
         return {
-          name: o.name,
-          revenue: (data || []).reduce(
-            (s, r) => s + Number(r.total_revenue),
-            0,
-          ),
+          name: m.label,
+          expenses: (expData || []).reduce((s, r) => s + Number(r.amount), 0),
+          grocery: (groData || []).reduce((s, r) => s + Number(r.cost), 0),
         };
       }),
     );
-    setOutletComparison(results);
+    setMonthlyExpenses(results);
   };
 
   const profit = todaySales - todayExpenses - todayGrocery;
