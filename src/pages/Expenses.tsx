@@ -109,8 +109,11 @@ const Expenses = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Expenses</h1>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold">Expenses</h1>
+          <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
+        </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Add Expense</Button>
