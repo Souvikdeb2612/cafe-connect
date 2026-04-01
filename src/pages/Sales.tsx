@@ -157,7 +157,18 @@ const Sales = () => {
                 {items.map((item, i) => (
                   <div key={i} className="flex gap-2 items-end">
                     <div className="flex-1">
-                      <Input placeholder="Item name" value={item.item_name} onChange={(e) => updateItem(i, "item_name", e.target.value)} />
+                      <Select value={item.item_name} onValueChange={(val) => {
+                        const menuItem = menuItems.find(m => m.name === val);
+                        updateItem(i, "item_name", val);
+                        if (menuItem) updateItem(i, "price", menuItem.price);
+                      }}>
+                        <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
+                        <SelectContent>
+                          {menuItems.map((m) => (
+                            <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="w-20">
                       <Input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => updateItem(i, "quantity", Number(e.target.value))} />
