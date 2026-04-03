@@ -18,6 +18,8 @@ import {
   TrendingUp,
   Wallet,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   BarChart,
@@ -30,14 +32,15 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { toast } from "sonner";
 
 const Dashboard = () => {
   const { selectedOutletId } = useOutlet();
   const { isAdmin } = useAuth();
-  const [todaySales, setTodaySales] = useState(0);
-  const [todayExpenses, setTodayExpenses] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [monthSales, setMonthSales] = useState(0);
+  const [monthExpenses, setMonthExpenses] = useState(0);
   const [monthlySales, setMonthlySales] = useState<any[]>([]);
   const [monthlyExpenses, setMonthlyExpenses] = useState<any[]>([]);
   const [totalFunds, setTotalFunds] = useState(0);
@@ -46,9 +49,18 @@ const Dashboard = () => {
   const [capitalNote, setCapitalNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const today = format(new Date(), "yyyy-MM-dd");
-
   const isAll = selectedOutletId === "all";
+
+  const monthStart = format(startOfMonth(selectedMonth), "yyyy-MM-dd");
+  const monthEnd = format(endOfMonth(selectedMonth), "yyyy-MM-dd");
+  const monthLabel = format(selectedMonth, "MMMM yyyy");
+
+  const goToPrevMonth = () => setSelectedMonth((prev) => subMonths(prev, 1));
+  const goToNextMonth = () => {
+    const next = addMonths(selectedMonth, 1);
+    if (next <= new Date()) setSelectedMonth(next);
+  };
+  const isCurrentMonth = format(selectedMonth, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
   useEffect(() => {
     fetchTotalFunds();
@@ -59,7 +71,7 @@ const Dashboard = () => {
     fetchKPIs();
     fetchMonthlySales();
     fetchMonthlyExpenses();
-  }, [selectedOutletId]);
+  }, [selectedOutletId, selectedMonth]);
 
   const applyOutletFilter = (query: any) => {
     if (!isAll) return query.eq("outlet_id", selectedOutletId);
@@ -102,20 +114,20 @@ const Dashboard = () => {
   };
 
   const fetchKPIs = async () => {
-    let salesQ = supabase.from("sales").select("total_revenue").eq("date", today);
-    let expensesQ = supabase.from("expenses").select("amount").eq("date", today);
+    let salesQ = supabase.from("sales").select("total_revenue").gte("date", monthStart).lte("date", monthEnd);
+    let expensesQ = supabase.from("expenses").select("amount").gte("date", monthStart).lte("date", monthEnd);
 
     const [sales, expenses] = await Promise.all([
       applyOutletFilter(salesQ),
       applyOutletFilter(expensesQ),
     ]);
-    setTodaySales((sales.data || []).reduce((s, r) => s + Number(r.total_revenue), 0));
-    setTodayExpenses((expenses.data || []).reduce((s, r) => s + Number(r.amount), 0));
+    setMonthSales((sales.data || []).reduce((s, r) => s + Number(r.total_revenue), 0));
+    setMonthExpenses((expenses.data || []).reduce((s, r) => s + Number(r.amount), 0));
   };
 
   const fetchMonthlySales = async () => {
     const months = Array.from({ length: 6 }, (_, i) => {
-      const d = subMonths(new Date(), 5 - i);
+      const d = subMonths(selectedMonth, 5 - i);
       return {
         start: format(startOfMonth(d), "yyyy-MM-dd"),
         end: format(endOfMonth(d), "yyyy-MM-dd"),
@@ -135,7 +147,7 @@ const Dashboard = () => {
 
   const fetchMonthlyExpenses = async () => {
     const months = Array.from({ length: 6 }, (_, i) => {
-      const d = subMonths(new Date(), 5 - i);
+      const d = subMonths(selectedMonth, 5 - i);
       return {
         start: format(startOfMonth(d), "yyyy-MM-dd"),
         end: format(endOfMonth(d), "yyyy-MM-dd"),
@@ -153,11 +165,11 @@ const Dashboard = () => {
     setMonthlyExpenses(results);
   };
 
-  const profit = todaySales - todayExpenses;
+  const profit = monthSales - monthExpenses;
 
   const kpis = [
-    { title: "Today's Sales", value: todaySales, icon: DollarSign, color: "text-primary" },
-    { title: "Expenses", value: todayExpenses, icon: Receipt, color: "text-destructive" },
+    { title: "Sales", value: monthSales, icon: DollarSign, color: "text-primary" },
+    { title: "Expenses", value: monthExpenses, icon: Receipt, color: "text-destructive" },
     { title: "Profit", value: profit, icon: TrendingUp, color: profit >= 0 ? "text-accent" : "text-destructive" },
   ];
 
@@ -179,6 +191,17 @@ const Dashboard = () => {
           </div>
           <Plus className="h-3 w-3 text-muted-foreground ml-1" />
         </button>
+      </div>
+
+      {/* Month Selector */}
+      <div className="flex items-center gap-3">
+        <Button variant="outline" size="icon" onClick={goToPrevMonth} className="h-8 w-8">
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-sm font-medium min-w-[140px] text-center">{monthLabel}</span>
+        <Button variant="outline" size="icon" onClick={goToNextMonth} disabled={isCurrentMonth} className="h-8 w-8">
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
