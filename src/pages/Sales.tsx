@@ -141,20 +141,20 @@ const Sales = () => {
           <h1 className="text-2xl font-bold">Sales</h1>
           <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
         </div>
+        {!canCreateSale && (
+          <p className="text-sm text-muted-foreground">Select a specific outlet to add or edit sales.</p>
+        )}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={!canCreateSale}><Plus className="h-4 w-4 mr-2" />New Sale</Button>
-          </DialogTrigger>
+          {canCreateSale && (
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" />New Sale</Button>
+            </DialogTrigger>
+          )}
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Record Sale</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!canCreateSale && (
-                <p className="text-sm text-muted-foreground">
-                  Select a single outlet from the sidebar to record a sale.
-                </p>
-              )}
               <div className="space-y-2">
                 <Label>Date</Label>
                 <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
