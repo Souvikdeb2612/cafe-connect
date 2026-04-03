@@ -155,11 +155,6 @@ const Sales = () => {
               <DialogTitle>Record Sale</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!canCreateSale && (
-                <p className="text-sm text-muted-foreground">
-                  Select a single outlet from the sidebar to record a sale.
-                </p>
-              )}
               <div className="space-y-2">
                 <Label>Date</Label>
                 <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
