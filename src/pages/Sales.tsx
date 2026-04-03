@@ -104,15 +104,21 @@ const Sales = () => {
   };
 
   const totalRevenue = items.reduce((s, it) => s + it.quantity * it.price, 0);
+  const canCreateSale = !!selectedOutletId && selectedOutletId !== "all";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreateSale) {
+      toast({ title: "Select a specific outlet", description: "Sales must be recorded for one outlet, not All Outlets.", variant: "destructive" });
+      return;
+    }
+
     const validItems = items.filter((it) => it.item_name.trim());
     if (validItems.length === 0) { toast({ title: "Add at least one item", variant: "destructive" }); return; }
 
     const { data: sale, error } = await supabase
       .from("sales")
-      .insert({ outlet_id: selectedOutletId!, date, total_revenue: totalRevenue, notes, created_by: user?.id })
+      .insert({ outlet_id: selectedOutletId, date, total_revenue: totalRevenue, notes, created_by: user?.id })
       .select()
       .single();
 
@@ -137,13 +143,18 @@ const Sales = () => {
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />New Sale</Button>
+            <Button disabled={!canCreateSale}><Plus className="h-4 w-4 mr-2" />New Sale</Button>
           </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Record Sale</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {!canCreateSale && (
+                <p className="text-sm text-muted-foreground">
+                  Select a single outlet from the sidebar to record a sale.
+                </p>
+              )}
               <div className="space-y-2">
                 <Label>Date</Label>
                 <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
