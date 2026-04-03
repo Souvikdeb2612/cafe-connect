@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { format, startOfMonth, endOfMonth, parse } from "date-fns";
 import MonthFilter from "@/components/MonthFilter";
 
@@ -45,6 +45,7 @@ const Sales = () => {
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<SaleItem[]>([{ item_name: "", quantity: 1, price: 0 }]);
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMenuItems();
@@ -106,32 +107,85 @@ const Sales = () => {
   const totalRevenue = items.reduce((s, it) => s + it.quantity * it.price, 0);
   const canCreateSale = !!selectedOutletId && selectedOutletId !== "all";
 
+  const resetForm = () => {
+    setDate(format(new Date(), "yyyy-MM-dd"));
+    setItems([{ item_name: "", quantity: 1, price: 0 }]);
+    setNotes("");
+    setEditingSaleId(null);
+  };
+
+  const openEditDialog = (sale: Sale) => {
+    setEditingSaleId(sale.id);
+    setDate(sale.date);
+    setNotes(sale.notes || "");
+    setItems(
+      sale.sale_items.length > 0
+        ? sale.sale_items.map((it) => ({ item_name: it.item_name, quantity: it.quantity, price: it.price }))
+        : [{ item_name: "", quantity: 1, price: 0 }]
+    );
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!editingSaleId) return;
+    const { error } = await supabase.from("sales").delete().eq("id", editingSaleId);
+    if (error) {
+      toast({ title: "Error deleting sale", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Sale deleted" });
+    setDialogOpen(false);
+    resetForm();
+    fetchSales();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canCreateSale) {
-      toast({ title: "Select a specific outlet", description: "Sales must be recorded for one outlet, not All Outlets.", variant: "destructive" });
+      toast({ title: "Select a specific outlet", variant: "destructive" });
       return;
     }
 
     const validItems = items.filter((it) => it.item_name.trim());
     if (validItems.length === 0) { toast({ title: "Add at least one item", variant: "destructive" }); return; }
 
-    const { data: sale, error } = await supabase
-      .from("sales")
-      .insert({ outlet_id: selectedOutletId, date, total_revenue: totalRevenue, notes, created_by: user?.id })
-      .select()
-      .single();
+    if (editingSaleId) {
+      // Update existing sale
+      const { error } = await supabase
+        .from("sales")
+        .update({ date, total_revenue: totalRevenue, notes })
+        .eq("id", editingSaleId);
 
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
 
-    await supabase.from("sale_items").insert(
-      validItems.map((it) => ({ sale_id: sale.id, item_name: it.item_name, quantity: it.quantity, price: it.price }))
-    );
+      // Delete old items and re-insert
+      await supabase.from("sale_items").delete().eq("sale_id", editingSaleId);
+      await supabase.from("sale_items").insert(
+        validItems.map((it) => ({ sale_id: editingSaleId, item_name: it.item_name, quantity: it.quantity, price: it.price }))
+      );
+    } else {
+      // Create new sale
+      const { data: sale, error } = await supabase
+        .from("sales")
+        .insert({ outlet_id: selectedOutletId, date, total_revenue: totalRevenue, notes, created_by: user?.id })
+        .select()
+        .single();
+
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+
+      await supabase.from("sale_items").insert(
+        validItems.map((it) => ({ sale_id: sale.id, item_name: it.item_name, quantity: it.quantity, price: it.price }))
+      );
+    }
 
     setDialogOpen(false);
-    setItems([{ item_name: "", quantity: 1, price: 0 }]);
-    setNotes("");
+    resetForm();
     fetchSales();
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) resetForm();
   };
 
   return (
@@ -144,69 +198,80 @@ const Sales = () => {
         {!canCreateSale && (
           <p className="text-sm text-muted-foreground">Select a specific outlet to add or edit sales.</p>
         )}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          {canCreateSale && (
-            <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />New Sale</Button>
-            </DialogTrigger>
-          )}
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Record Sale</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Items Sold</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                    <Plus className="h-3 w-3 mr-1" />Add Item
-                  </Button>
-                </div>
-                {items.map((item, i) => (
-                  <div key={i} className="flex gap-2 items-end">
-                    <div className="flex-1">
-                      <Select value={item.item_name} onValueChange={(val) => {
-                        const menuItem = menuItems.find(m => m.name === val);
-                        updateItem(i, { item_name: val, ...(menuItem ? { price: menuItem.price } : {}) });
-                      }}>
-                        <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
-                        <SelectContent>
-                          {menuItems.map((m) => (
-                            <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="w-20">
-                      <Input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })} />
-                    </div>
-                    <div className="w-24">
-                      <Input type="number" step="0.01" placeholder="Price" value={item.price} onChange={(e) => updateItem(i, { price: Number(e.target.value) })} />
-                    </div>
-                    {items.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(i)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <div className="text-right font-semibold">Total: ₹{totalRevenue.toLocaleString()}</div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Notes</Label>
-                <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
-              </div>
-              <Button type="submit" className="w-full">Record Sale</Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {canCreateSale && (
+          <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" />New Sale
+          </Button>
+        )}
       </div>
+
+      <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingSaleId ? "Edit Sale" : "Record Sale"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Items Sold</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                  <Plus className="h-3 w-3 mr-1" />Add Item
+                </Button>
+              </div>
+              {items.map((item, i) => (
+                <div key={i} className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <Select value={item.item_name} onValueChange={(val) => {
+                      const menuItem = menuItems.find(m => m.name === val);
+                      updateItem(i, { item_name: val, ...(menuItem ? { price: menuItem.price } : {}) });
+                    }}>
+                      <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
+                      <SelectContent>
+                        {menuItems.map((m) => (
+                          <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="w-20">
+                    <Input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })} />
+                  </div>
+                  <div className="w-24">
+                    <Input type="number" step="0.01" placeholder="Price" value={item.price} onChange={(e) => updateItem(i, { price: Number(e.target.value) })} />
+                  </div>
+                  {items.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(i)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <div className="text-right font-semibold">Total: ₹{totalRevenue.toLocaleString()}</div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+
+            <div className="flex gap-2">
+              {editingSaleId && (
+                <Button type="button" variant="destructive" onClick={handleDelete}>
+                  <Trash2 className="h-4 w-4 mr-2" />Delete
+                </Button>
+              )}
+              <Button type="submit" className="flex-1">
+                {editingSaleId ? "Update Sale" : "Record Sale"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="p-0">
@@ -217,11 +282,12 @@ const Sales = () => {
                 <TableHead>Items</TableHead>
                 <TableHead className="text-right">Revenue</TableHead>
                 <TableHead>Notes</TableHead>
+                {canCreateSale && <TableHead className="w-10" />}
               </TableRow>
             </TableHeader>
             <TableBody>
               {sales.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No sales recorded</TableCell></TableRow>
+                <TableRow><TableCell colSpan={canCreateSale ? 5 : 4} className="text-center text-muted-foreground py-8">No sales recorded</TableCell></TableRow>
               ) : (
                 sales.map((s) => (
                   <TableRow key={s.id}>
@@ -231,6 +297,13 @@ const Sales = () => {
                     </TableCell>
                     <TableCell className="text-right font-medium">₹{Number(s.total_revenue).toLocaleString()}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{s.notes || "—"}</TableCell>
+                    {canCreateSale && (
+                      <TableCell>
+                        <Button variant="ghost" size="icon" onClick={() => openEditDialog(s)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
