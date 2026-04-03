@@ -161,8 +161,7 @@ const Sales = () => {
                     <div className="flex-1">
                       <Select value={item.item_name} onValueChange={(val) => {
                         const menuItem = menuItems.find(m => m.name === val);
-                        updateItem(i, "item_name", val);
-                        if (menuItem) updateItem(i, "price", menuItem.price);
+                        updateItem(i, { item_name: val, ...(menuItem ? { price: menuItem.price } : {}) });
                       }}>
                         <SelectTrigger><SelectValue placeholder="Select item" /></SelectTrigger>
                         <SelectContent>
