@@ -172,10 +172,10 @@ const Sales = () => {
                       </Select>
                     </div>
                     <div className="w-20">
-                      <Input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => updateItem(i, "quantity", Number(e.target.value))} />
+                      <Input type="number" placeholder="Qty" value={item.quantity} onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })} />
                     </div>
                     <div className="w-24">
-                      <Input type="number" step="0.01" placeholder="Price" value={item.price} onChange={(e) => updateItem(i, "price", Number(e.target.value))} />
+                      <Input type="number" step="0.01" placeholder="Price" value={item.price} onChange={(e) => updateItem(i, { price: Number(e.target.value) })} />
                     </div>
                     {items.length > 1 && (
                       <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(i)}>
