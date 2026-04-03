@@ -95,10 +95,12 @@ const Sales = () => {
 
   const addItem = () => setItems([...items, { item_name: "", quantity: 1, price: 0 }]);
   const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i));
-  const updateItem = (i: number, field: keyof SaleItem, value: any) => {
-    const updated = [...items];
-    updated[i] = { ...updated[i], [field]: value };
-    setItems(updated);
+  const updateItem = (i: number, updates: Partial<SaleItem>) => {
+    setItems(prev => {
+      const updated = [...prev];
+      updated[i] = { ...updated[i], ...updates };
+      return updated;
+    });
   };
 
   const totalRevenue = items.reduce((s, it) => s + it.quantity * it.price, 0);
