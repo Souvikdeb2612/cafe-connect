@@ -168,6 +168,45 @@ const Dashboard = () => {
     setMonthlyExpenses(results);
   };
 
+  const fetchDailyFunds = async () => {
+    // Get everything before the selected month to compute starting balance
+    const beforeMonthStart = monthStart;
+    const [preSales, preExpenses, preCapital] = await Promise.all([
+      supabase.from("sales").select("total_revenue").lt("date", beforeMonthStart),
+      supabase.from("expenses").select("amount").lt("date", beforeMonthStart),
+      supabase.from("capital_additions").select("amount").lt("date", beforeMonthStart),
+    ]);
+    const startingBalance =
+      (preSales.data || []).reduce((s, r) => s + Number(r.total_revenue), 0) -
+      (preExpenses.data || []).reduce((s, r) => s + Number(r.amount), 0) +
+      (preCapital.data || []).reduce((s, r) => s + Number(r.amount), 0);
+
+    // Get daily transactions within the month
+    const [mSales, mExpenses, mCapital] = await Promise.all([
+      supabase.from("sales").select("total_revenue, date").gte("date", monthStart).lte("date", monthEnd),
+      supabase.from("expenses").select("amount, date").gte("date", monthStart).lte("date", monthEnd),
+      supabase.from("capital_additions").select("amount, date").gte("date", monthStart).lte("date", monthEnd),
+    ]);
+
+    // Build daily map
+    const dailyMap: Record<string, number> = {};
+    (mSales.data || []).forEach((r) => { dailyMap[r.date] = (dailyMap[r.date] || 0) + Number(r.total_revenue); });
+    (mExpenses.data || []).forEach((r) => { dailyMap[r.date] = (dailyMap[r.date] || 0) - Number(r.amount); });
+    (mCapital.data || []).forEach((r) => { dailyMap[r.date] = (dailyMap[r.date] || 0) + Number(r.amount); });
+
+    const today = new Date();
+    const endDate = isBefore(endOfMonth(selectedMonth), today) ? endOfMonth(selectedMonth) : today;
+    const days = eachDayOfInterval({ start: startOfMonth(selectedMonth), end: endDate });
+
+    let cumulative = startingBalance;
+    const result = days.map((d) => {
+      const key = format(d, "yyyy-MM-dd");
+      cumulative += dailyMap[key] || 0;
+      return { name: format(d, "dd"), funds: cumulative };
+    });
+    setDailyFunds(result);
+  };
+
   const profit = monthSales - monthExpenses;
 
   const kpis = [
