@@ -296,6 +296,29 @@ const Dashboard = () => {
         </Card>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Daily In-Hand Funds</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <AreaChart data={dailyFunds}>
+              <defs>
+                <linearGradient id="fundsGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+              <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, "Funds"]} />
+              <Area type="monotone" dataKey="funds" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#fundsGradient)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
       <Dialog open={capitalModalOpen} onOpenChange={setCapitalModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
