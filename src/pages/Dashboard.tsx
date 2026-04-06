@@ -44,6 +44,7 @@ const Dashboard = () => {
   const [monthExpenses, setMonthExpenses] = useState(0);
   const [monthlySales, setMonthlySales] = useState<any[]>([]);
   const [monthlyExpenses, setMonthlyExpenses] = useState<any[]>([]);
+  const [dailyFunds, setDailyFunds] = useState<any[]>([]);
   const [totalFunds, setTotalFunds] = useState(0);
   const [capitalModalOpen, setCapitalModalOpen] = useState(false);
   const [capitalAmount, setCapitalAmount] = useState("");
