@@ -32,7 +32,8 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, eachDayOfInterval, isBefore } from "date-fns";
+import { Area, AreaChart } from "recharts";
 import { toast } from "sonner";
 
 const Dashboard = () => {
