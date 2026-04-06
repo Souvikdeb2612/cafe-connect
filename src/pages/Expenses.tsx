@@ -132,7 +132,7 @@ const Expenses = () => {
         </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Add Expense</Button>
+            <Button disabled={!selectedOutletId || selectedOutletId === "all"}><Plus className="h-4 w-4 mr-2" />Add Expense</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
