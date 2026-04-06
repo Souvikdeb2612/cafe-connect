@@ -73,6 +73,7 @@ const Dashboard = () => {
     fetchKPIs();
     fetchMonthlySales();
     fetchMonthlyExpenses();
+    fetchDailyFunds();
   }, [selectedOutletId, selectedMonth]);
 
   const applyOutletFilter = (query: any) => {
