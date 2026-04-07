@@ -8,15 +8,18 @@
  *
  * MESSAGE FORMAT — SALE
  * ---------------------
- * SALE [OutletName]          ← first line: keyword + outlet name
+ * SALE [OutletName]          ← first line: keyword + outlet name + optional date
  * [ItemName] x[qty] @[price] ← one per line; lines without @ are skipped
  * [ItemName] x[qty] @[price]
  * ---
  * [total]                    ← stated total (used for validation)
  *
+ * OPTIONAL DATE: "SALE [OutletName] date: 2026-04-05"
+ * If omitted, defaults to today. Future dates are rejected.
+ *
  * MESSAGE FORMAT — EXPENSE
  * ------------------------
- * EXPENSE [OutletName]
+ * EXPENSE [OutletName] date: YYYY-MM-DD  (date is optional)
  * [ItemName] @[price]
  * [ItemName] @[price]
  * ---
@@ -25,7 +28,8 @@
  * PARSER RULES
  * ------------
  * - First word must be "SALE" or "EXPENSE" (case-insensitive).
- * - Outlet name is the LAST word of the first line.
+ * - Outlet name is the LAST word of the first line (before any date clause).
+ * - Optional "date: YYYY-MM-DD" is extracted from the first line if present.
  * - Lines without "@" are skipped (e.g. blank lines, headers).
  * - "---" acts as the delimiter between line items and the stated total.
  * - All lines after "---" are considered the "total block"; the parser
@@ -33,6 +37,7 @@
  * - Parsed total is computed by summing qty × price for each line item.
  * - If parsed_total !== stated_total → ⚠️ reply with mismatch, no DB write.
  * - Unknown menu items (for SALE) → ⚠️ reply asking for price, no DB write.
+ * - Future dates → ⚠️ "Future date not allowed."
  *
  * SUCCESS REPLY FORMAT
  * --------------------
@@ -49,6 +54,7 @@
  * @typedef {Object} ParsedSale
  * @property {"SALE"} type
  * @property {string} outletName
+ * @property {string} date       — YYYY-MM-DD
  * @property {Array<{itemName: string, quantity: number, price: number}>} items
  * @property {number} statedTotal
  * @property {number} parsedTotal
@@ -58,6 +64,7 @@
  * @typedef {Object} ParsedExpense
  * @property {"EXPENSE"} type
  * @property {string} outletName
+ * @property {string} date       — YYYY-MM-DD
  * @property {Array<{itemName: string, price: number}>} items
  * @property {number} statedTotal
  * @property {number} parsedTotal
@@ -76,15 +83,18 @@ const PRICE_PATTERN = /@\s*(\d+(?:\.\d{1,2})?)/;
 const TOTAL_PATTERN = /^\s*(\d+(?:\.\d{1,2})?)\s*$/;
 /** @type {Readonly<RegExp>} */
 const OUTLET_NAME_PATTERN = /^[A-Za-z0-9 _-]+$/;
-/** @type {Readonly<string[]>} */
+/** @type {Readonly<RegExp>} */
+const DATE_CLAUSE_PATTERN = /date:\s*(\d{4}-\d{2}-\d{2})/i;
+/** @type {Readonly<string>} */
 const SEPARATOR = "---";
 
 /**
- * Extracts the transaction type and outlet name from the first line.
- * Outlet name is the last whitespace-separated word.
+ * Extracts the transaction type, optional date, and outlet name from the first line.
+ * Format: "SALE [OutletName] date: YYYY-MM-DD" or just "SALE [OutletName]"
+ * Outlet name is the last word that is NOT part of the "date: YYYY-MM-DD" clause.
  *
- * @param {string} firstLine — e.g. "SALE DLF Mall" or "EXPENSE Koramangala"
- * @returns {{ type: "SALE" | "EXPENSE", outletName: string } | null}
+ * @param {string} firstLine — e.g. "SALE DLF Mall" or "EXPENSE Koramangala date: 2026-04-05"
+ * @returns {{ type: "SALE" | "EXPENSE", outletName: string, dateStr: string | null } | null}
  */
 function parseHeader(firstLine) {
   const trimmed = firstLine.trim();
@@ -96,13 +106,20 @@ function parseHeader(firstLine) {
   if (type !== "SALE" && type !== "EXPENSE") return null;
 
   const rest = trimmed.slice(spaceIdx + 1).trim();
+
+  // Extract optional "date: YYYY-MM-DD" clause
+  const dateMatch = DATE_CLAUSE_PATTERN.exec(rest);
+  const dateStr = dateMatch ? dateMatch[1] : null;
+
+  // Remove the date clause to isolate the outlet name portion
+  const withoutDate = dateStr ? rest.replace(DATE_CLAUSE_PATTERN, "").trim() : rest;
   // outlet name is the last word
-  const lastSpace = rest.lastIndexOf(" ");
-  const outletName = lastSpace === -1 ? rest : rest.slice(lastSpace + 1);
+  const lastSpace = withoutDate.lastIndexOf(" ");
+  const outletName = lastSpace === -1 ? withoutDate : withoutDate.slice(lastSpace + 1);
 
   if (!outletName || !OUTLET_NAME_PATTERN.test(outletName)) return null;
 
-  return { type, outletName };
+  return { type, outletName, dateStr };
 }
 
 /**
@@ -175,13 +192,26 @@ export function parseMessage(text) {
     return { valid: false, error: "Empty message", details: "Send a SALE or EXPENSE message." };
   }
 
-  // --- Step 1: Parse the header (type + outlet name) ---
+  // --- Step 1: Parse the header (type + outlet name + optional date) ---
   const header = parseHeader(lines[0]);
   if (!header) {
     return {
       valid: false,
       error: "Invalid header format",
-      details: 'First line must be "SALE [OutletName]" or "EXPENSE [OutletName]".',
+      details: 'First line must be "SALE [OutletName]" or "EXPENSE [OutletName] date: YYYY-MM-DD".',
+    };
+  }
+
+  // Determine the effective date (default to today if not specified)
+  const todayStr = new Date().toISOString().split("T")[0];
+  const entryDate = header.dateStr ?? todayStr;
+
+  // Reject future dates
+  if (entryDate > todayStr) {
+    return {
+      valid: false,
+      error: "Future date not allowed",
+      details: `Date ${entryDate} is in the future. Omit the date line to use today, or use a past date.`,
     };
   }
 
@@ -260,6 +290,7 @@ export function parseMessage(text) {
       valid: true,
       type: "SALE",
       outletName: header.outletName,
+      date: entryDate,
       items,
       statedTotal,
       parsedTotal,
@@ -269,6 +300,7 @@ export function parseMessage(text) {
       valid: true,
       type: "EXPENSE",
       outletName: header.outletName,
+      date: entryDate,
       items,
       statedTotal,
       parsedTotal,
@@ -303,4 +335,18 @@ export function formatSuccessReply(result) {
  */
 export function formatErrorReply(error) {
   return `⚠️ ${error.error}\n${error.details ?? ""}`;
+}
+
+/**
+ * Parses ALL transactions in a single message string.
+ * Splits by "---" separator and parses each block independently.
+ *
+ * @param {string} text — raw message text from Telegram
+ * @returns {Array<ParseSuccess | ParseError>}
+ */
+export function parseAll(text) {
+  // Split by "---" to get individual transaction blocks
+  const blocks = text.split(/^---$/m).filter((b) => b.trim());
+
+  return blocks.map((block) => parseMessage(block.trim()));
 }
