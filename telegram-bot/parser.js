@@ -355,8 +355,9 @@ export function formatSuccessReply(result) {
       .join(", ");
     return `✅ Sale recorded — ${outlet}${dateNote} — ₹${total}\n  ${itemList}`;
   } else {
+    const catNote = result.categoryName ? ` [${result.categoryName}]` : "";
     const itemList = result.items.map((it) => it.itemName).join(", ");
-    return `✅ Expense recorded — ${outlet}${dateNote} — ₹${total}\n  ${itemList}`;
+    return `✅ Expense recorded — ${outlet}${dateNote}${catNote} — ₹${total}\n  ${itemList}`;
   }
 }
 
