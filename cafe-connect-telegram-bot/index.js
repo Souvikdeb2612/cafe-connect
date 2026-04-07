@@ -192,8 +192,8 @@ async function resolveCategoryId(categoryName) {
  * @param {number} total
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
-async function recordSale(outletId, items, total) {
-  const today = new Date().toISOString().split("T")[0];
+async function recordSale(outletId, items, total, dateOverride) {
+  const today = dateOverride || new Date().toISOString().split("T")[0];
 
   const { data: sale, error: saleErr } = await supabase
     .from("sales")
@@ -238,8 +238,8 @@ async function recordSale(outletId, items, total) {
  * @param {number} total
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
-async function recordExpense(outletId, categoryId, items, total) {
-  const today = new Date().toISOString().split("T")[0];
+async function recordExpense(outletId, categoryId, items, total, dateOverride) {
+  const today = dateOverride || new Date().toISOString().split("T")[0];
 
   const rows = items.map((it) => ({
     outlet_id: outletId,
@@ -351,9 +351,9 @@ bot.on("message", async (msg) => {
   // ── Write to Supabase ─────────────────────────────────────────────────
   let recordResult;
   if (parsed.type === "SALE") {
-    recordResult = await recordSale(outletId, parsed.items, parsed.parsedTotal);
+    recordResult = await recordSale(outletId, parsed.items, parsed.parsedTotal, parsed.date);
   } else {
-    recordResult = await recordExpense(outletId, categoryId, parsed.items, parsed.parsedTotal);
+    recordResult = await recordExpense(outletId, categoryId, parsed.items, parsed.parsedTotal, parsed.date);
   }
 
   if (!recordResult.ok) {
