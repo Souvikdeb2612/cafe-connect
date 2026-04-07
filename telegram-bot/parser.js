@@ -222,12 +222,25 @@ export function parseMessage(text) {
     };
   }
 
-  // --- Step 4: Parse line items ---
+  // --- Step 3.5: Extract optional category line (EXPENSE only) ---
+  let categoryName = null;
   const rawItemLines = lines.slice(1, sepIndex);
+  const itemLines = [];
+
+  for (const line of rawItemLines) {
+    const catMatch = CATEGORY_PATTERN.exec(line);
+    if (catMatch && header.type === "EXPENSE" && !categoryName) {
+      categoryName = catMatch[1].trim();
+    } else {
+      itemLines.push(line);
+    }
+  }
+
+  // --- Step 4: Parse line items ---
   const parseLine = header.type === "SALE" ? parseSaleLine : parseExpenseLine;
 
   const items = [];
-  for (const line of rawItemLines) {
+  for (const line of itemLines) {
     const parsed = parseLine(line);
     if (parsed) items.push(parsed);
   }
