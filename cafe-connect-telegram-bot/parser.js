@@ -288,6 +288,7 @@ export function parseMessage(text) {
     type: header.type,
     outletName: header.outletName,
     date: entryDate,
+    categoryName,
     items,
     statedTotal,
     parsedTotal,
