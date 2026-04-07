@@ -71,7 +71,7 @@
 /** @type {Readonly<RegExp>} */
 const QTY_PATTERN = /x(\d+)/i;
 /** @type {Readonly<RegExp>} */
-const PRICE_PATTERN = /@(\d+(?:\.\d{1,2})?)/;
+const PRICE_PATTERN = /@\s*(\d+(?:\.\d{1,2})?)/;
 /** @type {Readonly<RegExp>} */
 const TOTAL_PATTERN = /^\s*(\d+(?:\.\d{1,2})?)\s*$/;
 /** @type {Readonly<RegExp>} */
@@ -128,7 +128,7 @@ function parseSaleLine(line) {
   if (quantity < 1) return null;
 
   // item name is everything before the @price
-  const priceIdx = trimmed.lastIndexOf("@" + priceMatch[1]);
+  const priceIdx = trimmed.lastIndexOf(priceMatch[0]);
   const beforePrice = trimmed.slice(0, priceIdx).trim();
   // remove the " xQty" suffix if present
   const itemName = qtyMatch ? beforePrice.replace(QTY_PATTERN, "").trim() : beforePrice;
@@ -153,7 +153,7 @@ function parseExpenseLine(line) {
   if (isNaN(price) || price < 0) return null;
 
   // item name is everything before the @price
-  const priceIdx = trimmed.lastIndexOf("@" + priceMatch[1]);
+  const priceIdx = trimmed.lastIndexOf(priceMatch[0]);
   const itemName = trimmed.slice(0, priceIdx).trim();
 
   if (!itemName) return null;
