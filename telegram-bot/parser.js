@@ -44,6 +44,7 @@ const PRICE_PATTERN = /@\s*(\d+(?:\.\d{1,2})?)/;
 const TOTAL_PATTERN = /^\s*(\d+(?:\.\d{1,2})?)\s*$/;
 const OUTLET_NAME_PATTERN = /^[A-Za-z0-9 _'-]+$/;
 const DATE_CLAUSE_PATTERN = /date:\s*(\d{4}-\d{2}-\d{2})/i;
+const CATEGORY_CLAUSE_PATTERN = /category:\s*(.+)/i;
 const CATEGORY_PATTERN = /^category:\s*(.+)$/i;
 const SEPARATOR = "---";
 
@@ -101,12 +102,19 @@ function parseHeader(firstLine) {
   const dateMatch = DATE_CLAUSE_PATTERN.exec(rest);
   const dateStr = dateMatch ? dateMatch[1] : null;
 
-  // Remove the date clause to isolate the outlet name
-  const outletName = dateStr ? rest.replace(DATE_CLAUSE_PATTERN, "").trim() : rest;
+  // Extract optional "category: Name" clause
+  const categoryMatch = CATEGORY_CLAUSE_PATTERN.exec(rest);
+  const categoryName = categoryMatch ? categoryMatch[1].trim() : null;
+
+  // Remove date and category clauses to isolate the outlet name
+  let outletName = rest;
+  if (dateStr) outletName = outletName.replace(DATE_CLAUSE_PATTERN, "");
+  if (categoryName) outletName = outletName.replace(CATEGORY_CLAUSE_PATTERN, "");
+  outletName = outletName.trim();
 
   if (!outletName || !OUTLET_NAME_PATTERN.test(outletName)) return null;
 
-  return { type, outletName, dateStr };
+  return { type, outletName, dateStr, categoryName };
 }
 
 // ─── Line Parsers ───────────────────────────────────────────────────────────

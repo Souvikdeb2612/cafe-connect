@@ -461,7 +461,7 @@ bot.on("message", async (msg) => {
     // ── For EXPENSE: resolve category ─────────────────────────────────────
     let categoryId = null;
     if (parsed.type === "EXPENSE") {
-      categoryId = await resolveCategoryId();
+      categoryId = await resolveCategoryId(parsed.categoryName);
       if (!categoryId) {
         const reply = formatErrorReply({
           valid: false,
