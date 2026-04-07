@@ -111,11 +111,8 @@ function parseHeader(firstLine) {
   const dateMatch = DATE_CLAUSE_PATTERN.exec(rest);
   const dateStr = dateMatch ? dateMatch[1] : null;
 
-  // Remove the date clause to isolate the outlet name portion
-  const withoutDate = dateStr ? rest.replace(DATE_CLAUSE_PATTERN, "").trim() : rest;
-  // outlet name is the last word
-  const lastSpace = withoutDate.lastIndexOf(" ");
-  const outletName = lastSpace === -1 ? withoutDate : withoutDate.slice(lastSpace + 1);
+  // Remove the date clause to isolate the outlet name portion (full multi-word name)
+  const outletName = dateStr ? rest.replace(DATE_CLAUSE_PATTERN, "").trim() : rest;
 
   if (!outletName || !OUTLET_NAME_PATTERN.test(outletName)) return null;
 
