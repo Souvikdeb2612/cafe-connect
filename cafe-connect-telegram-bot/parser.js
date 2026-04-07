@@ -44,6 +44,7 @@ const PRICE_PATTERN = /@\s*(\d+(?:\.\d{1,2})?)/;
 const TOTAL_PATTERN = /^\s*(\d+(?:\.\d{1,2})?)\s*$/;
 const OUTLET_NAME_PATTERN = /^[A-Za-z0-9 _'-]+$/;
 const DATE_CLAUSE_PATTERN = /date:\s*(\d{4}-\d{2}-\d{2})/i;
+const CATEGORY_PATTERN = /^category:\s*(.+)$/i;
 const SEPARATOR = "---";
 
 const MAX_QUANTITY = 9999;
