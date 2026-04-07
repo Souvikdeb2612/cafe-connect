@@ -314,12 +314,17 @@ bot.on("message", async (msg) => {
 
     let categoryId = null;
     if (parsed.type === "EXPENSE") {
-      categoryId = await resolveCategoryId();
+      categoryId = await resolveCategoryId(parsed.categoryName);
       if (!categoryId) {
+        const categories = await getCategoryMap();
+        const names = Array.from(categories.keys()).join(", ") || "(none)";
+        const hint = parsed.categoryName
+          ? `Unknown category: "${parsed.categoryName}".`
+          : "No category specified and no default found.";
         await bot.sendMessage(msg.chat.id, formatErrorReply({
           valid: false,
-          error: "No expense category found",
-          details: 'Add at least one category with type "expense" in Cafe Connect.',
+          error: hint,
+          details: `Known categories: ${names}.\nAdd "category: [name]" after the header, or add categories in Cafe Connect.`,
         }), { reply_to_message_id: msg.message_id });
         continue;
       }

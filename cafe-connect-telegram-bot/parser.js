@@ -20,6 +20,7 @@
  * MESSAGE FORMAT — EXPENSE
  * ------------------------
  * EXPENSE [OutletName] date: YYYY-MM-DD  (date is optional)
+ * category: Grocery                       (optional — defaults to General)
  * [ItemName] @[price]
  * [ItemName] @[price]
  * ---
@@ -43,6 +44,7 @@ const PRICE_PATTERN = /@\s*(\d+(?:\.\d{1,2})?)/;
 const TOTAL_PATTERN = /^\s*(\d+(?:\.\d{1,2})?)\s*$/;
 const OUTLET_NAME_PATTERN = /^[A-Za-z0-9 _'-]+$/;
 const DATE_CLAUSE_PATTERN = /date:\s*(\d{4}-\d{2}-\d{2})/i;
+const CATEGORY_PATTERN = /^category:\s*(.+)$/i;
 const SEPARATOR = "---";
 
 const MAX_QUANTITY = 9999;
@@ -220,12 +222,25 @@ export function parseMessage(text) {
     };
   }
 
-  // --- Step 4: Parse line items ---
+  // --- Step 3.5: Extract optional category line (EXPENSE only) ---
+  let categoryName = null;
   const rawItemLines = lines.slice(1, sepIndex);
+  const itemLines = [];
+
+  for (const line of rawItemLines) {
+    const catMatch = CATEGORY_PATTERN.exec(line);
+    if (catMatch && header.type === "EXPENSE" && !categoryName) {
+      categoryName = catMatch[1].trim();
+    } else {
+      itemLines.push(line);
+    }
+  }
+
+  // --- Step 4: Parse line items ---
   const parseLine = header.type === "SALE" ? parseSaleLine : parseExpenseLine;
 
   const items = [];
-  for (const line of rawItemLines) {
+  for (const line of itemLines) {
     const parsed = parseLine(line);
     if (parsed) items.push(parsed);
   }
@@ -273,6 +288,7 @@ export function parseMessage(text) {
     type: header.type,
     outletName: header.outletName,
     date: entryDate,
+    categoryName,
     items,
     statedTotal,
     parsedTotal,
@@ -339,8 +355,9 @@ export function formatSuccessReply(result) {
       .join(", ");
     return `✅ Sale recorded — ${outlet}${dateNote} — ₹${total}\n  ${itemList}`;
   } else {
+    const catNote = result.categoryName ? ` [${result.categoryName}]` : "";
     const itemList = result.items.map((it) => it.itemName).join(", ");
-    return `✅ Expense recorded — ${outlet}${dateNote} — ₹${total}\n  ${itemList}`;
+    return `✅ Expense recorded — ${outlet}${dateNote}${catNote} — ₹${total}\n  ${itemList}`;
   }
 }
 
