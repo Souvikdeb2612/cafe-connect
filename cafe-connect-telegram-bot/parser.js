@@ -76,6 +76,8 @@ const PRICE_PATTERN = /@\s*(\d+(?:\.\d{1,2})?)/;
 const TOTAL_PATTERN = /^\s*(\d+(?:\.\d{1,2})?)\s*$/;
 /** @type {Readonly<RegExp>} */
 const OUTLET_NAME_PATTERN = /^[A-Za-z0-9 _-]+$/;
+/** @type {Readonly<RegExp>} Matches "date: YYYY-MM-DD" (or similar) at the end of the header */
+const DATE_SUFFIX_PATTERN = /\s+date:\s*\S+\s*$/i;
 /** @type {Readonly<string[]>} */
 const SEPARATOR = "---";
 
@@ -95,14 +97,25 @@ function parseHeader(firstLine) {
   const type = trimmed.slice(0, spaceIdx).toUpperCase();
   if (type !== "SALE" && type !== "EXPENSE") return null;
 
-  const rest = trimmed.slice(spaceIdx + 1).trim();
-  // outlet name is the last word
-  const lastSpace = rest.lastIndexOf(" ");
-  const outletName = lastSpace === -1 ? rest : rest.slice(lastSpace + 1);
+  let rest = trimmed.slice(spaceIdx + 1).trim();
+
+  // Strip optional "date: YYYY-MM-DD" suffix
+  let date = null;
+  const dateMatch = DATE_SUFFIX_PATTERN.exec(rest);
+  if (dateMatch) {
+    const datePart = dateMatch[0].trim().replace(/^date:\s*/i, "");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      date = datePart;
+    }
+    rest = rest.slice(0, dateMatch.index).trim();
+  }
+
+  // The entire remaining text is the outlet name (supports multi-word names like "Link Road")
+  const outletName = rest;
 
   if (!outletName || !OUTLET_NAME_PATTERN.test(outletName)) return null;
 
-  return { type, outletName };
+  return { type, outletName, date };
 }
 
 /**
@@ -260,6 +273,7 @@ export function parseMessage(text) {
       valid: true,
       type: "SALE",
       outletName: header.outletName,
+      date: header.date,
       items,
       statedTotal,
       parsedTotal,
@@ -269,6 +283,7 @@ export function parseMessage(text) {
       valid: true,
       type: "EXPENSE",
       outletName: header.outletName,
+      date: header.date,
       items,
       statedTotal,
       parsedTotal,
