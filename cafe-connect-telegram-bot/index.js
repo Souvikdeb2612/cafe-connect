@@ -3,7 +3,8 @@
  * =========================================
  *
  * Listens for SALE / EXPENSE messages in a Telegram group, parses them,
- * validates totals, writes to Supabase, and replies with ✅ or ⚠️.
+ * validates totals, checks for duplicates, writes to Supabase, and replies
+ * with ✅ or ⚠️.
  *
  * ENVIRONMENT VARIABLES (required)
  * ---------------------------------
@@ -22,7 +23,7 @@
 
 import TelegramBot from "node-telegram-bot-api";
 import { supabase } from "./supabase.js";
-import { parseMessage, formatSuccessReply, formatErrorReply } from "./parser.js";
+import { parseAll, formatSuccessReply, formatErrorReply } from "./parser.js";
 
 // ─── Environment ────────────────────────────────────────────────────────────
 
@@ -31,9 +32,6 @@ if (!TELEGRAM_BOT_TOKEN) {
   console.error("❌ TELEGRAM_BOT_TOKEN environment variable is required.");
   process.exit(1);
 }
-
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 const BOT_NAME = process.env.BOT_NAME ?? "CafeConnectBot";
 
@@ -53,19 +51,11 @@ console.log(`🤖 ${BOT_NAME} started — polling for messages...`);
 
 // ─── Supabase Helpers ────────────────────────────────────────────────────────
 
-/**
- * Fetches all outlets from Supabase and returns a map of name → id.
- * Results are cached for 5 minutes to avoid excessive queries.
- *
- * @returns {Promise<Map<string, string>>} outlet name (lowercase) → outlet id
- */
 let _outletCache = { data: null, expiresAt: 0 };
 
 async function getOutletMap() {
   const now = Date.now();
-  if (_outletCache.data && _outletCache.expiresAt > now) {
-    return _outletCache.data;
-  }
+  if (_outletCache.data && _outletCache.expiresAt > now) return _outletCache.data;
 
   const { data, error } = await supabase
     .from("outlets")
@@ -73,7 +63,7 @@ async function getOutletMap() {
     .eq("is_active", true);
 
   if (error || !data) {
-    console.error("⚠️  Failed to fetch outlets from Supabase:", error?.message);
+    console.error("⚠️  Failed to fetch outlets:", error?.message);
     return new Map();
   }
 
@@ -82,19 +72,11 @@ async function getOutletMap() {
   return map;
 }
 
-/**
- * Fetches active menu items from Supabase, returning a map of name → price.
- * Cached for 5 minutes.
- *
- * @returns {Promise<Map<string, number>>} menu item name (lowercase) → price
- */
 let _menuItemCache = { data: null, expiresAt: 0 };
 
 async function getMenuItemPriceMap() {
   const now = Date.now();
-  if (_menuItemCache.data && _menuItemCache.expiresAt > now) {
-    return _menuItemCache.data;
-  }
+  if (_menuItemCache.data && _menuItemCache.expiresAt > now) return _menuItemCache.data;
 
   const { data, error } = await supabase
     .from("menu_items")
@@ -111,18 +93,11 @@ async function getMenuItemPriceMap() {
   return map;
 }
 
-/**
- * Fetches expense categories from Supabase.
- *
- * @returns {Promise<Map<string, string>>} category name (lowercase) → category id
- */
 let _categoryCache = { data: null, expiresAt: 0 };
 
 async function getCategoryMap() {
   const now = Date.now();
-  if (_categoryCache.data && _categoryCache.expiresAt > now) {
-    return _categoryCache.data;
-  }
+  if (_categoryCache.data && _categoryCache.expiresAt > now) return _categoryCache.data;
 
   const { data, error } = await supabase
     .from("categories")
@@ -139,36 +114,16 @@ async function getCategoryMap() {
   return map;
 }
 
-/**
- * Looks up the outlet id by name. If not found, returns null and the caller
- * should reply with an ⚠️ error.
- *
- * @param {string} outletName
- * @returns {Promise<string | null>}
- */
 async function resolveOutletId(outletName) {
   const outlets = await getOutletMap();
   return outlets.get(outletName.toLowerCase()) ?? null;
 }
 
-/**
- * Looks up menu item price. If item not found, returns null.
- *
- * @param {string} itemName
- * @returns {Promise<number | null>}
- */
 async function getMenuItemPrice(itemName) {
   const menu = await getMenuItemPriceMap();
   return menu.get(itemName.toLowerCase()) ?? null;
 }
 
-/**
- * Looks up category id by name. Falls back to the default expense category
- * from env or "General".
- *
- * @param {string} [categoryName]
- * @returns {Promise<string | null>}
- */
 async function resolveCategoryId(categoryName) {
   const categories = await getCategoryMap();
 
@@ -177,29 +132,87 @@ async function resolveCategoryId(categoryName) {
     if (found) return found;
   }
 
-  // Fall back to default
   const defaultName = (process.env.DEFAULT_EXPENSE_CATEGORY ?? "General").toLowerCase();
   return categories.get(defaultName) ?? null;
 }
 
-/**
- * Records a SALE in Supabase:
- *   1. Inserts a row in `sales` (outlet_id, date, total_revenue, notes).
- *   2. Inserts one row per item in `sale_items` (sale_id, item_name, qty, price).
- *
- * @param {string} outletId
- * @param {Array<{itemName: string, quantity: number, price: number}>} items
- * @param {number} total
- * @returns {Promise<{ ok: boolean, error?: string }>}
- */
-async function recordSale(outletId, items, total, dateOverride) {
-  const today = dateOverride || new Date().toISOString().split("T")[0];
+// ─── Duplicate Detection ─────────────────────────────────────────────────────
 
+function buildItemSignature(type, items) {
+  return items
+    .map((it) => {
+      const name = it.itemName.toLowerCase();
+      return type === "SALE" ? `${name}|${it.quantity}|${it.price}` : `${name}|${it.price}`;
+    })
+    .sort()
+    .join("||");
+}
+
+async function checkDuplicate(type, outletId, date, total, items) {
+  const sig = buildItemSignature(type, items);
+
+  if (type === "SALE") {
+    const { data: sales, error } = await supabase
+      .from("sales")
+      .select("id, sale_items(item_name, quantity, price)")
+      .eq("outlet_id", outletId)
+      .eq("date", date)
+      .eq("total_revenue", total);
+
+    if (error || !sales) return false;
+
+    for (const sale of sales) {
+      const existingSig = buildItemSignature(
+        "SALE",
+        sale.sale_items.map((si) => ({
+          itemName: si.item_name,
+          quantity: si.quantity,
+          price: si.price,
+        }))
+      );
+      if (existingSig === sig) return true;
+    }
+    return false;
+  } else {
+    const { data: expenses, error } = await supabase
+      .from("expenses")
+      .select("notes, amount")
+      .eq("outlet_id", outletId)
+      .eq("date", date);
+
+    if (error || !expenses) return false;
+
+    const dbItemCounts = {};
+    for (const exp of expenses) {
+      const itemName = exp.notes?.replace("Telegram bot: ", "").toLowerCase() ?? "";
+      const key = `${itemName}|${exp.amount}`;
+      dbItemCounts[key] = (dbItemCounts[key] ?? 0) + 1;
+    }
+
+    const submitItemCounts = {};
+    for (const it of items) {
+      const key = `${it.itemName.toLowerCase()}|${it.price}`;
+      submitItemCounts[key] = (submitItemCounts[key] ?? 0) + 1;
+    }
+
+    const dbKeys = Object.keys(dbItemCounts).sort().join("||");
+    const subKeys = Object.keys(submitItemCounts).sort().join("||");
+
+    const dbTotal = expenses.reduce((s, e) => s + e.amount, 0);
+    if (Math.round(dbTotal * 100) !== Math.round(total * 100)) return false;
+
+    return dbKeys === subKeys;
+  }
+}
+
+// ─── DB Writers ──────────────────────────────────────────────────────────────
+
+async function recordSale(outletId, date, items, total) {
   const { data: sale, error: saleErr } = await supabase
     .from("sales")
     .insert({
       outlet_id: outletId,
-      date: today,
+      date,
       total_revenue: total,
       notes: `Telegram bot entry — ${items.length} item(s)`,
     })
@@ -220,7 +233,6 @@ async function recordSale(outletId, items, total, dateOverride) {
   const { error: itemsErr } = await supabase.from("sale_items").insert(saleItemsRows);
 
   if (itemsErr) {
-    // Rollback: delete the sale row we just inserted
     await supabase.from("sales").delete().eq("id", sale.id);
     return { ok: false, error: `Sale items insert failed: ${itemsErr.message}` };
   }
@@ -228,31 +240,19 @@ async function recordSale(outletId, items, total, dateOverride) {
   return { ok: true };
 }
 
-/**
- * Records an EXPENSE in Supabase.
- * Each line item becomes a separate expense row with the same date and notes.
- *
- * @param {string} outletId
- * @param {string | null} categoryId
- * @param {Array<{itemName: string, price: number}>} items
- * @param {number} total
- * @returns {Promise<{ ok: boolean, error?: string }>}
- */
-async function recordExpense(outletId, categoryId, items, total, dateOverride) {
-  const today = dateOverride || new Date().toISOString().split("T")[0];
-
+async function recordExpense(outletId, categoryId, date, items, total) {
   const rows = items.map((it) => ({
     outlet_id: outletId,
     category_id: categoryId,
     amount: it.price,
-    date: today,
+    date,
     notes: `Telegram bot: ${it.itemName}`,
   }));
 
-  const { error: expenseErr } = await supabase.from("expenses").insert(rows);
+  const { error } = await supabase.from("expenses").insert(rows);
 
-  if (expenseErr) {
-    return { ok: false, error: `Expense insert failed: ${expenseErr.message}` };
+  if (error) {
+    return { ok: false, error: `Expense insert failed: ${error.message}` };
   }
 
   return { ok: true };
@@ -260,135 +260,103 @@ async function recordExpense(outletId, categoryId, items, total, dateOverride) {
 
 // ─── Message Handler ─────────────────────────────────────────────────────────
 
-/**
- * Main handler — called for every message the bot receives.
- */
 bot.on("message", async (msg) => {
-  // Ignore non-text messages (photos, stickers, etc.)
   if (!msg.text || !msg.chat) return;
 
   const chatId = String(msg.chat.id);
   const text = msg.text.trim();
 
-  // ── Group ID allowlist check ───────────────────────────────────────────
-  if (ALLOWED_GROUP_IDS.size > 0 && !ALLOWED_GROUP_IDS.has(chatId)) {
-    console.log(`📪 Message from unauthorized group ${chatId} — ignored.`);
-    return;
-  }
-
-  // ── Ignore very short messages (not a transaction) ───────────────────
+  if (ALLOWED_GROUP_IDS.size > 0 && !ALLOWED_GROUP_IDS.has(chatId)) return;
   if (text.length < 10) return;
 
-  // ── Quick check: must start with SALE or EXPENSE ─────────────────────
   const firstWord = text.split(/\s/)[0].toUpperCase();
   if (firstWord !== "SALE" && firstWord !== "EXPENSE") return;
 
   console.log(`\n📥 [${new Date().toISOString()}] ${msg.chat.title ?? "DM"} / ${msg.from?.first_name}: ${text.slice(0, 80)}`);
 
-  // ── Parse the message ─────────────────────────────────────────────────
-  const parsed = parseMessage(text);
+  const parsedResults = parseAll(text);
 
-  if (!parsed.valid) {
-    const reply = formatErrorReply(parsed);
-    await bot.sendMessage(msg.chat.id, reply, { reply_to_message_id: msg.message_id });
-    return;
-  }
+  for (const parsed of parsedResults) {
+    if (!parsed.valid) {
+      await bot.sendMessage(msg.chat.id, formatErrorReply(parsed), { reply_to_message_id: msg.message_id });
+      continue;
+    }
 
-  // ── Resolve outlet ────────────────────────────────────────────────────
-  const outletId = await resolveOutletId(parsed.outletName);
+    const outletId = await resolveOutletId(parsed.outletName);
 
-  if (!outletId) {
-    const knownOutlets = await getOutletMap();
-    const names = Array.from(knownOutlets.keys()).join(", ") || "(none found)";
-    const reply = formatErrorReply({
-      valid: false,
-      error: `Unknown outlet: "${parsed.outletName}"`,
-      details: `Known outlets: ${names}. Check spelling or add the outlet in Cafe Connect first.`,
-    });
-    await bot.sendMessage(msg.chat.id, reply, { reply_to_message_id: msg.message_id });
-    return;
-  }
+    if (!outletId) {
+      const knownOutlets = await getOutletMap();
+      const names = Array.from(knownOutlets.keys()).join(", ") || "(none)";
+      await bot.sendMessage(msg.chat.id, formatErrorReply({
+        valid: false,
+        error: `Unknown outlet: "${parsed.outletName}"`,
+        details: `Known outlets: ${names}. Check spelling or add it in Cafe Connect first.`,
+      }), { reply_to_message_id: msg.message_id });
+      continue;
+    }
 
-  // ── For SALE: validate each item against menu_items table ─────────────
-  if (parsed.type === "SALE") {
-    const unknownItems = [];
+    if (parsed.type === "SALE") {
+      const unknownItems = [];
+      for (const item of parsed.items) {
+        const price = await getMenuItemPrice(item.itemName);
+        if (price === null) unknownItems.push(item.itemName);
+      }
 
-    for (const item of parsed.items) {
-      const price = await getMenuItemPrice(item.itemName);
-      if (price === null) {
-        unknownItems.push(item.itemName);
+      if (unknownItems.length > 0) {
+        await bot.sendMessage(msg.chat.id, formatErrorReply({
+          valid: false,
+          error: `Unknown item(s): "${unknownItems.join(", ")}"`,
+          details: "Add these items to Menu Items in Cafe Connect before logging this sale.",
+        }), { reply_to_message_id: msg.message_id });
+        continue;
       }
     }
 
-    if (unknownItems.length > 0) {
-      const reply = formatErrorReply({
-        valid: false,
-        error: `Unknown item(s): "${unknownItems.join(", ")}"`,
-        details:
-          "Add these items to the Menu Items list in Cafe Connect before logging a sale that includes them.",
-      });
-      await bot.sendMessage(msg.chat.id, reply, { reply_to_message_id: msg.message_id });
-      return;
+    let categoryId = null;
+    if (parsed.type === "EXPENSE") {
+      categoryId = await resolveCategoryId();
+      if (!categoryId) {
+        await bot.sendMessage(msg.chat.id, formatErrorReply({
+          valid: false,
+          error: "No expense category found",
+          details: 'Add at least one category with type "expense" in Cafe Connect.',
+        }), { reply_to_message_id: msg.message_id });
+        continue;
+      }
     }
-  }
 
-  // ── For EXPENSE: resolve category ─────────────────────────────────────
-  let categoryId = null;
-  if (parsed.type === "EXPENSE") {
-    categoryId = await resolveCategoryId();
-    if (!categoryId) {
-      const reply = formatErrorReply({
-        valid: false,
-        error: "No expense category found",
-        details:
-          `Add at least one category with type "expense" in Cafe Connect, or set DEFAULT_EXPENSE_CATEGORY env var.`,
-      });
-      await bot.sendMessage(msg.chat.id, reply, { reply_to_message_id: msg.message_id });
-      return;
+    const isDuplicate = await checkDuplicate(parsed.type, outletId, parsed.date, parsed.parsedTotal, parsed.items);
+    if (isDuplicate) {
+      await bot.sendMessage(msg.chat.id, "⚠️ Duplicate entry detected — this data was already logged.", { reply_to_message_id: msg.message_id });
+      continue;
     }
-  }
 
-  // ── Write to Supabase ─────────────────────────────────────────────────
-  let recordResult;
-  if (parsed.type === "SALE") {
-    recordResult = await recordSale(outletId, parsed.items, parsed.parsedTotal, parsed.date);
-  } else {
-    recordResult = await recordExpense(outletId, categoryId, parsed.items, parsed.parsedTotal, parsed.date);
-  }
+    let recordResult;
+    if (parsed.type === "SALE") {
+      recordResult = await recordSale(outletId, parsed.date, parsed.items, parsed.parsedTotal);
+    } else {
+      recordResult = await recordExpense(outletId, categoryId, parsed.date, parsed.items, parsed.parsedTotal);
+    }
 
-  if (!recordResult.ok) {
-    const reply = formatErrorReply({
-      valid: false,
-      error: "Database write failed",
-      details: recordResult.error,
-    });
-    await bot.sendMessage(msg.chat.id, reply, { reply_to_message_id: msg.message_id });
-    return;
-  }
+    if (!recordResult.ok) {
+      await bot.sendMessage(msg.chat.id, formatErrorReply({
+        valid: false,
+        error: "Database write failed",
+        details: recordResult.error,
+      }), { reply_to_message_id: msg.message_id });
+      continue;
+    }
 
-  // ── Success reply ──────────────────────────────────────────────────────
-  const reply = formatSuccessReply(parsed);
-  await bot.sendMessage(msg.chat.id, reply, { reply_to_message_id: msg.message_id });
-  console.log(`✅ [${new Date().toISOString()}] ${parsed.type} recorded — ${parsed.outletName} — ₹${parsed.parsedTotal}`);
+    await bot.sendMessage(msg.chat.id, formatSuccessReply(parsed), { reply_to_message_id: msg.message_id });
+    console.log(`✅ [${new Date().toISOString()}] ${parsed.type} recorded — ${parsed.outletName} (${parsed.date}) — ₹${parsed.parsedTotal}`);
+  }
 });
 
 // ─── Error Handling ─────────────────────────────────────────────────────────
 
-bot.on("polling_error", (err) => {
-  console.error("❌ Telegram polling error:", err.message);
-});
+bot.on("polling_error", (err) => console.error("❌ Telegram polling error:", err.message));
+bot.on("error", (err) => console.error("❌ Bot error:", err.message));
 
-bot.on("error", (err) => {
-  console.error("❌ Bot error:", err.message);
-});
-
-// ─── Graceful Shutdown ───────────────────────────────────────────────────────
-
-const shutdown = () => {
-  console.log("\n👋 Shutting down bot...");
-  bot.stopPolling();
-  process.exit(0);
-};
-
+const shutdown = () => { console.log("\n👋 Shutting down..."); bot.stopPolling(); process.exit(0); };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
