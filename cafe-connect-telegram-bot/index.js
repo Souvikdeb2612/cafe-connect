@@ -174,34 +174,19 @@ async function checkDuplicate(type, outletId, date, total, items) {
     }
     return false;
   } else {
+    // Expenses are now stored as a single row with combined notes + total amount
+    const newNotes = items.map((it) => `${it.itemName} @${it.price}`).join(", ");
+
     const { data: expenses, error } = await supabase
       .from("expenses")
       .select("notes, amount")
       .eq("outlet_id", outletId)
-      .eq("date", date);
+      .eq("date", date)
+      .eq("amount", total);
 
     if (error || !expenses) return false;
 
-    const dbItemCounts = {};
-    for (const exp of expenses) {
-      const itemName = exp.notes?.replace("Telegram bot: ", "").toLowerCase() ?? "";
-      const key = `${itemName}|${exp.amount}`;
-      dbItemCounts[key] = (dbItemCounts[key] ?? 0) + 1;
-    }
-
-    const submitItemCounts = {};
-    for (const it of items) {
-      const key = `${it.itemName.toLowerCase()}|${it.price}`;
-      submitItemCounts[key] = (submitItemCounts[key] ?? 0) + 1;
-    }
-
-    const dbKeys = Object.keys(dbItemCounts).sort().join("||");
-    const subKeys = Object.keys(submitItemCounts).sort().join("||");
-
-    const dbTotal = expenses.reduce((s, e) => s + e.amount, 0);
-    if (Math.round(dbTotal * 100) !== Math.round(total * 100)) return false;
-
-    return dbKeys === subKeys;
+    return expenses.some((exp) => exp.notes === newNotes);
   }
 }
 
@@ -241,15 +226,15 @@ async function recordSale(outletId, date, items, total) {
 }
 
 async function recordExpense(outletId, categoryId, date, items, total) {
-  const rows = items.map((it) => ({
+  const notes = items.map((it) => `${it.itemName} @${it.price}`).join(", ");
+
+  const { error } = await supabase.from("expenses").insert({
     outlet_id: outletId,
     category_id: categoryId,
-    amount: it.price,
+    amount: total,
     date,
-    notes: `Telegram bot: ${it.itemName}`,
-  }));
-
-  const { error } = await supabase.from("expenses").insert(rows);
+    notes,
+  });
 
   if (error) {
     return { ok: false, error: `Expense insert failed: ${error.message}` };
