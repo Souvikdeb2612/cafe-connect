@@ -351,7 +351,7 @@ export function formatSuccessReply(result) {
 
   if (result.type === "SALE") {
     const itemList = result.items
-      .map((it) => (it.quantity > 1 ? `${it.itemName} x${it.quantity}` : it.itemName))
+      .map((it) => it.quantity > 1 ? `${it.itemName} ${it.quantity}` : it.itemName)
       .join(", ");
     return `✅ Sale recorded — ${outlet}${dateNote} — ₹${total}\n  ${itemList}`;
   } else {
