@@ -76,6 +76,8 @@ const PRICE_PATTERN = /@\s*(\d+(?:\.\d{1,2})?)/;
 const TOTAL_PATTERN = /^\s*(\d+(?:\.\d{1,2})?)\s*$/;
 /** @type {Readonly<RegExp>} */
 const OUTLET_NAME_PATTERN = /^[A-Za-z0-9 _-]+$/;
+/** @type {Readonly<RegExp>} Matches "date: YYYY-MM-DD" (or similar) at the end of the header */
+const DATE_SUFFIX_PATTERN = /\s+date:\s*\S+\s*$/i;
 /** @type {Readonly<string[]>} */
 const SEPARATOR = "---";
 
