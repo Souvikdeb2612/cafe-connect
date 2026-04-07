@@ -214,7 +214,7 @@ async function recordSale(outletId, date, items, total) {
       outlet_id: outletId,
       date,
       total_revenue: total,
-      notes: `Telegram bot entry — ${items.length} item(s)`,
+      notes: items.map(it => `${it.itemName} x${it.quantity}`).join(", "),
     })
     .select("id")
     .single();
