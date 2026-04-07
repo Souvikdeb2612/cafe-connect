@@ -132,7 +132,7 @@ async function resolveCategoryId(categoryName) {
     if (found) return found;
   }
 
-  const defaultName = (process.env.DEFAULT_EXPENSE_CATEGORY ?? "General").toLowerCase();
+  const defaultName = (process.env.DEFAULT_EXPENSE_CATEGORY ?? "Grocery").toLowerCase();
   return categories.get(defaultName) ?? null;
 }
 
