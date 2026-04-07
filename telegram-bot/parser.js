@@ -20,6 +20,7 @@
  * MESSAGE FORMAT — EXPENSE
  * ------------------------
  * EXPENSE [OutletName] date: YYYY-MM-DD  (date is optional)
+ * category: Grocery                       (optional — defaults to General)
  * [ItemName] @[price]
  * [ItemName] @[price]
  * ---
