@@ -241,15 +241,15 @@ async function recordSale(outletId, date, items, total) {
 }
 
 async function recordExpense(outletId, categoryId, date, items, total) {
-  const rows = items.map((it) => ({
+  const notes = items.map((it) => `${it.itemName} @${it.price}`).join(", ");
+
+  const { error } = await supabase.from("expenses").insert({
     outlet_id: outletId,
     category_id: categoryId,
-    amount: it.price,
+    amount: total,
     date,
-    notes: `Telegram bot: ${it.itemName}`,
-  }));
-
-  const { error } = await supabase.from("expenses").insert(rows);
+    notes,
+  });
 
   if (error) {
     return { ok: false, error: `Expense insert failed: ${error.message}` };
