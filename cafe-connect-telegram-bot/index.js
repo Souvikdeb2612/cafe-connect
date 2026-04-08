@@ -190,6 +190,22 @@ async function checkDuplicate(type, outletId, date, total, items) {
   }
 }
 
+// ─── Total Funds Calculator ──────────────────────────────────────────────────
+
+async function getTotalFunds() {
+  const [salesRes, expensesRes, capitalRes] = await Promise.all([
+    supabase.from("sales").select("total_revenue"),
+    supabase.from("expenses").select("amount"),
+    supabase.from("capital_additions").select("amount"),
+  ]);
+
+  const totalSales = (salesRes.data || []).reduce((s, r) => s + Number(r.total_revenue), 0);
+  const totalExpenses = (expensesRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
+  const totalCapital = (capitalRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
+
+  return totalSales + totalCapital - totalExpenses;
+}
+
 // ─── DB Writers ──────────────────────────────────────────────────────────────
 
 async function recordSale(outletId, date, items, total) {
@@ -337,7 +353,15 @@ bot.on("message", async (msg) => {
       continue;
     }
 
-    await bot.sendMessage(msg.chat.id, formatSuccessReply(parsed), { reply_to_message_id: msg.message_id });
+    let fundsText = "";
+    try {
+      const totalFunds = await getTotalFunds();
+      fundsText = `\n\n💰 Updated Funds: ₹${totalFunds.toLocaleString("en-IN")}`;
+    } catch (e) {
+      console.error("⚠️  Failed to fetch total funds:", e.message);
+    }
+
+    await bot.sendMessage(msg.chat.id, formatSuccessReply(parsed) + fundsText, { reply_to_message_id: msg.message_id });
     console.log(`✅ [${new Date().toISOString()}] ${parsed.type} recorded — ${parsed.outletName} (${parsed.date}) — ₹${parsed.parsedTotal}`);
   }
 });
