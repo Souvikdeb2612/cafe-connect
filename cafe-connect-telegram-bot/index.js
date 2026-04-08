@@ -190,6 +190,22 @@ async function checkDuplicate(type, outletId, date, total, items) {
   }
 }
 
+// ─── Total Funds Calculator ──────────────────────────────────────────────────
+
+async function getTotalFunds() {
+  const [salesRes, expensesRes, capitalRes] = await Promise.all([
+    supabase.from("sales").select("total_revenue"),
+    supabase.from("expenses").select("amount"),
+    supabase.from("capital_additions").select("amount"),
+  ]);
+
+  const totalSales = (salesRes.data || []).reduce((s, r) => s + Number(r.total_revenue), 0);
+  const totalExpenses = (expensesRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
+  const totalCapital = (capitalRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
+
+  return totalSales + totalCapital - totalExpenses;
+}
+
 // ─── DB Writers ──────────────────────────────────────────────────────────────
 
 async function recordSale(outletId, date, items, total) {
