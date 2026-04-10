@@ -68,7 +68,7 @@ async function getOutletMap() {
   }
 
   const map = new Map(data.map((o) => [o.name.toLowerCase(), o.id]));
-  _outletCache = { data: map, expiresAt: now + 5 * 60 * 1000 };
+  if (map.size > 0) _outletCache = { data: map, expiresAt: now + 5 * 60 * 1000 };
   return map;
 }
 
@@ -89,7 +89,7 @@ async function getMenuItemPriceMap() {
   }
 
   const map = new Map(data.map((m) => [m.name.toLowerCase(), m.price]));
-  _menuItemCache = { data: map, expiresAt: now + 5 * 60 * 1000 };
+  if (map.size > 0) _menuItemCache = { data: map, expiresAt: now + 5 * 60 * 1000 };
   return map;
 }
 
@@ -110,7 +110,7 @@ async function getCategoryMap() {
   }
 
   const map = new Map(data.map((c) => [c.name.toLowerCase(), c.id]));
-  _categoryCache = { data: map, expiresAt: now + 5 * 60 * 1000 };
+  if (map.size > 0) _categoryCache = { data: map, expiresAt: now + 5 * 60 * 1000 };
   return map;
 }
 
