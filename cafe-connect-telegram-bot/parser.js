@@ -19,10 +19,10 @@
  *
  * MESSAGE FORMAT — EXPENSE
  * ------------------------
- * EXPENSE [OutletName] date: YYYY-MM-DD  (date is optional)
+ * EXPENSE [OutletName] date: YYYY-MM-DD   (date is optional)
  * category: Grocery                       (optional — defaults to General)
- * [ItemName] @[price]
- * [ItemName] @[price]
+ * [ItemName] x[qty] @[price]
+ * [ItemName] x[qty] @[price]
  * ---
  * [total]
  *
@@ -140,24 +140,31 @@ function parseSaleLine(line) {
 }
 
 /**
- * Parses a single expense line: "Auto Rickshaw @45"
+ * Parses a single expense line: "Auto Rickshaw x1.5 @45"
  * @param {string} line
- * @returns {{ itemName: string, price: number } | null}
+ * @returns {{ itemName: string, quantity: number, price: number } | null}
  */
 function parseExpenseLine(line) {
   const trimmed = line.trim();
   if (!trimmed || !PRICE_PATTERN.test(trimmed)) return null;
 
+   const qtyMatch = QTY_PATTERN.exec(trimmed);
   const priceMatch = PRICE_PATTERN.exec(trimmed);
+   if (!priceMatch) return null;
+
   const price = parseFloat(priceMatch[1]);
   if (isNaN(price) || price <= 0 || price > MAX_PRICE) return null;
 
   const priceIdx = trimmed.lastIndexOf(priceMatch[0]);
-  const itemName = trimmed.slice(0, priceIdx).trim();
+   const beforePrice = trimmed.slice(0, priceIdx).trim();
+   const quantity = qtyMatch ? parseFloat(qtyMatch[1]) : 1;
+   if (quantity <= 0 || quantity > MAX_QUANTITY) return null;
+
+   const itemName = qtyMatch ? beforePrice.replace(QTY_PATTERN, "").trim() : beforePrice;
 
   if (!itemName) return null;
 
-  return { itemName, price };
+   return { itemName, quantity, price };
 }
 
 // ─── Single Transaction Parser ──────────────────────────────────────────────
@@ -351,12 +358,14 @@ export function formatSuccessReply(result) {
 
   if (result.type === "SALE") {
     const itemList = result.items
-      .map((it) => (it.quantity > 1 ? `${it.itemName} x${it.quantity}` : it.itemName))
+      .map((it) => (it.quantity !== 1 ? `${it.itemName} x${it.quantity}` : it.itemName))
       .join(", ");
     return `✅ Sale recorded — ${outlet}${dateNote} — ₹${total}\n  ${itemList}`;
   } else {
     const catNote = result.categoryName ? ` [${result.categoryName}]` : "";
-    const itemList = result.items.map((it) => it.itemName).join(", ");
+    const itemList = result.items
+      .map((it) => (it.quantity !== 1 ? `${it.itemName} x${it.quantity}` : it.itemName))
+      .join(", ");
     return `✅ Expense recorded — ${outlet}${dateNote}${catNote} — ₹${total}\n  ${itemList}`;
   }
 }

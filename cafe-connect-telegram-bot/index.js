@@ -142,10 +142,16 @@ function buildItemSignature(type, items) {
   return items
     .map((it) => {
       const name = it.itemName.toLowerCase();
-      return type === "SALE" ? `${name}|${it.quantity}|${it.price}` : `${name}|${it.price}`;
+      const quantity = typeof it.quantity === "number" ? it.quantity : 1;
+      return type === "SALE" ? `${name}|${quantity}|${it.price}` : `${name}|${quantity}|${it.price}`;
     })
     .sort()
     .join("||");
+}
+
+function formatExpenseItem(item) {
+  const quantity = typeof item.quantity === "number" ? item.quantity : 1;
+  return quantity === 1 ? `${item.itemName} @${item.price}` : `${item.itemName} x${quantity} @${item.price}`;
 }
 
 async function checkDuplicate(type, outletId, date, total, items) {
@@ -175,7 +181,7 @@ async function checkDuplicate(type, outletId, date, total, items) {
     return false;
   } else {
     // Expenses are now stored as a single row with combined notes + total amount
-    const newNotes = items.map((it) => `${it.itemName} @${it.price}`).join(", ");
+    const newNotes = items.map(formatExpenseItem).join(", ");
 
     const { data: expenses, error } = await supabase
       .from("expenses")
@@ -242,7 +248,7 @@ async function recordSale(outletId, date, items, total) {
 }
 
 async function recordExpense(outletId, categoryId, date, items, total) {
-  const notes = items.map((it) => `${it.itemName} @${it.price}`).join(", ");
+  const notes = items.map(formatExpenseItem).join(", ");
 
   const { error } = await supabase.from("expenses").insert({
     outlet_id: outletId,
