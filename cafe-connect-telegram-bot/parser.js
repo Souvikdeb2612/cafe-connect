@@ -39,7 +39,7 @@
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const QTY_PATTERN = /x(\d+)/i;
+const QTY_PATTERN = /x(\d+(?:\.\d{1,2})?)/i;
 const PRICE_PATTERN = /@\s*(\d+(?:\.\d{1,2})?)/;
 const TOTAL_PATTERN = /^\s*(\d+(?:\.\d{1,2})?)\s*$/;
 const OUTLET_NAME_PATTERN = /^[A-Za-z0-9 _'-]+$/;
@@ -127,8 +127,8 @@ function parseSaleLine(line) {
   const price = parseFloat(priceMatch[1]);
   if (isNaN(price) || price <= 0 || price > MAX_PRICE) return null;
 
-  const quantity = qtyMatch ? parseInt(qtyMatch[1], 10) : 1;
-  if (quantity < 1 || quantity > MAX_QUANTITY) return null;
+  const quantity = qtyMatch ? parseFloat(qtyMatch[1]) : 1;
+  if (quantity <= 0 || quantity > MAX_QUANTITY) return null;
 
   const priceIdx = trimmed.lastIndexOf(priceMatch[0]);
   const beforePrice = trimmed.slice(0, priceIdx).trim();
