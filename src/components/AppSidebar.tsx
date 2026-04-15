@@ -12,6 +12,8 @@ import {
   Menu,
   X,
   UtensilsCrossed,
+  BarChart3,
+  PieChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -21,6 +23,11 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/sales", icon: DollarSign, label: "Sales" },
   { to: "/expenses", icon: Receipt, label: "Expenses" },
+];
+
+const intelligenceItems = [
+  { to: "/sales-intelligence", icon: BarChart3, label: "Sales Insights" },
+  { to: "/expenses-intelligence", icon: PieChart, label: "Expense Insights" },
 ];
 
 const adminItems = [
@@ -57,6 +64,17 @@ const AppSidebar = () => {
 
       <nav className="flex-1 space-y-1 px-2">
         {navItems.map((item) => (
+          <NavLink key={item.to} to={item.to} className={linkClass(item.to)} onClick={() => setOpen(false)}>
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </NavLink>
+        ))}
+
+        <div className="my-3 border-t border-border" />
+        <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
+          Intelligence
+        </p>
+        {intelligenceItems.map((item) => (
           <NavLink key={item.to} to={item.to} className={linkClass(item.to)} onClick={() => setOpen(false)}>
             <item.icon className="h-4 w-4" />
             {item.label}
