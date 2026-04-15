@@ -49,13 +49,13 @@ const Login = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md shadow-lg border-0">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md shadow-whisper border-0">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Coffee className="h-7 w-7" />
           </div>
-          <CardTitle className="text-2xl font-bold">Cafe Manager</CardTitle>
+          <CardTitle className="text-2xl font-serif font-semibold">Cafe Manager</CardTitle>
           <CardDescription>
             {isSignUp ? "Create an account to get started" : "Sign in to your account"}
           </CardDescription>

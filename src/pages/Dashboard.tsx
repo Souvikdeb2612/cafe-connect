@@ -20,10 +20,10 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  BarChart3,
+  PieChart,
 } from "lucide-react";
 import {
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -42,6 +42,8 @@ const Dashboard = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [monthSales, setMonthSales] = useState(0);
   const [monthExpenses, setMonthExpenses] = useState(0);
+  const [salesCount, setSalesCount] = useState(0);
+  const [expensesCount, setExpensesCount] = useState(0);
   const [monthlySales, setMonthlySales] = useState<any[]>([]);
   const [monthlyExpenses, setMonthlyExpenses] = useState<any[]>([]);
   const [dailyFunds, setDailyFunds] = useState<any[]>([]);
@@ -124,8 +126,12 @@ const Dashboard = () => {
       applyOutletFilter(salesQ),
       applyOutletFilter(expensesQ),
     ]);
-    setMonthSales((sales.data || []).reduce((s, r) => s + Number(r.total_revenue), 0));
-    setMonthExpenses((expenses.data || []).reduce((s, r) => s + Number(r.amount), 0));
+    const salesData = sales.data || [];
+    const expensesData = expenses.data || [];
+    setMonthSales(salesData.reduce((s, r) => s + Number(r.total_revenue), 0));
+    setMonthExpenses(expensesData.reduce((s, r) => s + Number(r.amount), 0));
+    setSalesCount(salesData.length);
+    setExpensesCount(expensesData.length);
   };
 
   const fetchMonthlySales = async () => {
@@ -169,7 +175,6 @@ const Dashboard = () => {
   };
 
   const fetchDailyFunds = async () => {
-    // Get everything before the selected month to compute starting balance
     const beforeMonthStart = monthStart;
     const [preSales, preExpenses, preCapital] = await Promise.all([
       supabase.from("sales").select("total_revenue").lt("date", beforeMonthStart),
@@ -181,14 +186,12 @@ const Dashboard = () => {
       (preExpenses.data || []).reduce((s, r) => s + Number(r.amount), 0) +
       (preCapital.data || []).reduce((s, r) => s + Number(r.amount), 0);
 
-    // Get daily transactions within the month
     const [mSales, mExpenses, mCapital] = await Promise.all([
       supabase.from("sales").select("total_revenue, date").gte("date", monthStart).lte("date", monthEnd),
       supabase.from("expenses").select("amount, date").gte("date", monthStart).lte("date", monthEnd),
       supabase.from("capital_additions").select("amount, date").gte("date", monthStart).lte("date", monthEnd),
     ]);
 
-    // Build daily map
     const dailyMap: Record<string, number> = {};
     (mSales.data || []).forEach((r) => { dailyMap[r.date] = (dailyMap[r.date] || 0) + Number(r.total_revenue); });
     (mExpenses.data || []).forEach((r) => { dailyMap[r.date] = (dailyMap[r.date] || 0) - Number(r.amount); });
@@ -208,26 +211,44 @@ const Dashboard = () => {
   };
 
   const profit = monthSales - monthExpenses;
+  const avgSale = salesCount > 0 ? Math.round(monthSales / salesCount) : 0;
+  const avgExpense = expensesCount > 0 ? Math.round(monthExpenses / expensesCount) : 0;
 
   const kpis = [
-    { title: "Sales", value: monthSales, icon: DollarSign, color: "text-primary" },
-    { title: "Expenses", value: monthExpenses, icon: Receipt, color: "text-destructive" },
-    { title: "Profit", value: profit, icon: TrendingUp, color: profit >= 0 ? "text-accent" : "text-destructive" },
+    { title: "Total Sales", value: monthSales, icon: DollarSign, color: "text-primary" },
+    { title: "Total Expenses", value: monthExpenses, icon: Receipt, color: "text-destructive" },
+    { title: "Profit", value: profit, icon: TrendingUp, color: profit >= 0 ? "text-success" : "text-destructive" },
+    { title: "Avg. Sale", value: avgSale, icon: BarChart3, color: "text-primary", subtitle: `${salesCount} entries` },
+    { title: "Avg. Expense", value: avgExpense, icon: PieChart, color: "text-destructive", subtitle: `${expensesCount} entries` },
   ];
 
+  const tooltipStyle = {
+    backgroundColor: "hsl(43 33% 97%)",
+    border: "1px solid hsl(40 20% 91%)",
+    borderRadius: "8px",
+    color: "hsl(60 4% 9%)",
+    fontSize: "13px",
+    boxShadow: "rgba(0,0,0,0.05) 0px 4px 24px",
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">
-          Dashboard {isAll ? "— All Outlets" : ""}
-        </h1>
+        <div>
+          <h1 className="text-3xl font-serif font-semibold tracking-tight">
+            Dashboard
+          </h1>
+          {isAll && <p className="text-sm text-muted-foreground mt-1">All Outlets</p>}
+        </div>
         <button
           onClick={() => setCapitalModalOpen(true)}
-          className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 shadow-sm hover:bg-muted transition-colors cursor-pointer"
+          className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-4 py-2.5 shadow-ring hover:shadow-ring-hover transition-shadow cursor-pointer"
         >
           <Wallet className="h-4 w-4 text-primary" />
           <div className="text-left">
-            <p className={`text-sm font-bold ${totalFunds >= 0 ? "text-accent" : "text-destructive"}`}>
+            <p className="text-xs text-muted-foreground leading-none mb-0.5">Total Funds</p>
+            <p className={`text-sm font-semibold ${totalFunds >= 0 ? "text-success" : "text-destructive"}`}>
               ₹{totalFunds.toLocaleString()}
             </p>
           </div>
@@ -237,92 +258,98 @@ const Dashboard = () => {
 
       {/* Month Selector */}
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="icon" onClick={goToPrevMonth} className="h-8 w-8">
+        <Button variant="outline" size="icon" onClick={goToPrevMonth} className="h-8 w-8 rounded-lg">
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span className="text-sm font-medium min-w-[140px] text-center">{monthLabel}</span>
-        <Button variant="outline" size="icon" onClick={goToNextMonth} disabled={isCurrentMonth} className="h-8 w-8">
+        <span className="text-sm font-medium min-w-[140px] text-center text-foreground">{monthLabel}</span>
+        <Button variant="outline" size="icon" onClick={goToNextMonth} disabled={isCurrentMonth} className="h-8 w-8 rounded-lg">
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* KPI Cards */}
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         {kpis.map((kpi) => (
-          <Card key={kpi.title}>
+          <Card key={kpi.title} className="shadow-ring border-0 hover:shadow-ring-hover transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
-              <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{kpi.title}</CardTitle>
+              <kpi.icon className={`h-4 w-4 ${kpi.color} opacity-70`} />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{kpi.value.toLocaleString()}</div>
+              <div className="text-2xl font-serif font-semibold">₹{kpi.value.toLocaleString()}</div>
+              {"subtitle" in kpi && kpi.subtitle && (
+                <p className="text-xs text-muted-foreground mt-1">{kpi.subtitle}</p>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="shadow-ring border-0">
           <CardHeader>
-            <CardTitle className="text-base">Monthly Revenue Trend</CardTitle>
+            <CardTitle className="text-base font-serif">Monthly Revenue Trend</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={monthlySales}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip />
-                <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ fill: "hsl(var(--primary))" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(40 20% 91%)" />
+                <XAxis dataKey="name" stroke="hsl(48 4% 50%)" fontSize={12} />
+                <YAxis stroke="hsl(48 4% 50%)" fontSize={12} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Line type="monotone" dataKey="revenue" stroke="hsl(18 55% 52%)" strokeWidth={2} dot={{ fill: "hsl(18 55% 52%)", r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-ring border-0">
           <CardHeader>
-            <CardTitle className="text-base">Monthly Expenses Trend</CardTitle>
+            <CardTitle className="text-base font-serif">Monthly Expenses Trend</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={monthlyExpenses}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip />
-                <Line type="monotone" dataKey="expenses" stroke="hsl(var(--destructive))" strokeWidth={2} dot={{ fill: "hsl(var(--destructive))" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(40 20% 91%)" />
+                <XAxis dataKey="name" stroke="hsl(48 4% 50%)" fontSize={12} />
+                <YAxis stroke="hsl(48 4% 50%)" fontSize={12} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Line type="monotone" dataKey="expenses" stroke="hsl(0 50% 45%)" strokeWidth={2} dot={{ fill: "hsl(0 50% 45%)", r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="shadow-ring border-0">
         <CardHeader>
-          <CardTitle className="text-base">Daily In-Hand Funds</CardTitle>
+          <CardTitle className="text-base font-serif">Daily In-Hand Funds</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={dailyFunds}>
               <defs>
                 <linearGradient id="fundsGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  <stop offset="5%" stopColor="hsl(18 55% 52%)" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="hsl(18 55% 52%)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-              <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, "Funds"]} />
-              <Area type="monotone" dataKey="funds" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#fundsGradient)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(40 20% 91%)" />
+              <XAxis dataKey="name" stroke="hsl(48 4% 50%)" fontSize={12} />
+              <YAxis stroke="hsl(48 4% 50%)" fontSize={12} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`₹${value.toLocaleString()}`, "Funds"]} />
+              <Area type="monotone" dataKey="funds" stroke="hsl(18 55% 52%)" strokeWidth={2} fill="url(#fundsGradient)" />
             </AreaChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
+      {/* Capital Modal */}
       <Dialog open={capitalModalOpen} onOpenChange={setCapitalModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Capital</DialogTitle>
+            <DialogTitle className="font-serif">Add Capital</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div>
