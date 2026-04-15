@@ -38,20 +38,20 @@ const AppSidebar = () => {
     cn(
       "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
       location.pathname === path
-        ? "bg-primary/15 text-primary border-l-2 border-primary shadow-sm shadow-primary/10"
-        : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground border-l-2 border-transparent"
+        ? "bg-primary/10 text-primary shadow-ring"
+        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
     );
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 px-4 py-5">
+      <div className="flex items-center gap-2.5 px-4 py-5 border-b border-border">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Coffee className="h-5 w-5" />
         </div>
-        <span className="text-lg font-bold text-sidebar-foreground">Cafe Manager</span>
+        <span className="text-lg font-serif font-semibold text-foreground">Cafe Manager</span>
       </div>
 
-      <div className="px-2 pb-4">
+      <div className="px-2 py-4">
         <OutletSelector />
       </div>
 
@@ -65,8 +65,8 @@ const AppSidebar = () => {
 
         {isAdmin && (
           <>
-            <div className="my-3 border-t border-sidebar-border" />
-            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+            <div className="my-3 border-t border-border" />
+            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">
               Admin
             </p>
             {adminItems.map((item) => (
@@ -79,11 +79,11 @@ const AppSidebar = () => {
         )}
       </nav>
 
-      <div className="border-t border-sidebar-border p-3">
-        <div className="mb-2 truncate px-3 text-xs text-sidebar-foreground/50">{user?.email}</div>
+      <div className="border-t border-border p-3">
+        <div className="mb-2 truncate px-3 text-xs text-muted-foreground">{user?.email}</div>
         <button
           onClick={signOut}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
         >
           <LogOut className="h-4 w-4" />
           Sign Out
@@ -104,12 +104,12 @@ const AppSidebar = () => {
       </Button>
 
       {open && (
-        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-foreground/20 md:hidden" onClick={() => setOpen(false)} />
       )}
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar-background border-r border-sidebar-border transition-transform md:translate-x-0 md:static md:z-auto shadow-xl shadow-black/30",
+          "fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transition-transform md:translate-x-0 md:static md:z-auto shadow-whisper",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
