@@ -13,6 +13,8 @@ import Expenses from "@/pages/Expenses";
 import Outlets from "@/pages/Outlets";
 import UserManagement from "@/pages/UserManagement";
 import MenuItems from "@/pages/MenuItems";
+import SalesIntelligence from "@/pages/SalesIntelligence";
+import ExpensesIntelligence from "@/pages/ExpensesIntelligence";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +41,8 @@ const App = () => (
               <Route path="/outlets" element={<Outlets />} />
               <Route path="/users" element={<UserManagement />} />
               <Route path="/menu-items" element={<MenuItems />} />
+              <Route path="/sales-intelligence" element={<SalesIntelligence />} />
+              <Route path="/expenses-intelligence" element={<ExpensesIntelligence />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
