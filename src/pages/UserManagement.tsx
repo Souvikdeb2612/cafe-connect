@@ -98,7 +98,7 @@ const UserManagement = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">User Management</h1>
+      <h1 className="text-3xl font-serif font-semibold tracking-tight">User Management</h1>
 
       <Card>
         <CardContent className="p-0">

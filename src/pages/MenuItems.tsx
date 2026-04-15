@@ -119,7 +119,7 @@ const MenuItems = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Manage Items & Categories</h1>
+      <h1 className="text-3xl font-serif font-semibold tracking-tight">Items & Categories</h1>
 
       <Tabs defaultValue="menu">
         <TabsList>

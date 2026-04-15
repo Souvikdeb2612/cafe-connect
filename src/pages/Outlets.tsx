@@ -57,7 +57,7 @@ const Outlets = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Outlets</h1>
+        <h1 className="text-3xl font-serif font-semibold tracking-tight">Outlets</h1>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" />Add Outlet</Button>
