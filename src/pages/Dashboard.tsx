@@ -5,13 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   DollarSign,
   Receipt,
@@ -23,15 +17,7 @@ import {
   BarChart3,
   PieChart,
 } from "lucide-react";
-import {
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-} from "recharts";
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, eachDayOfInterval, isBefore } from "date-fns";
 import { Area, AreaChart } from "recharts";
 import { toast } from "sonner";
@@ -122,10 +108,7 @@ const Dashboard = () => {
     let salesQ = supabase.from("sales").select("total_revenue").gte("date", monthStart).lte("date", monthEnd);
     let expensesQ = supabase.from("expenses").select("amount").gte("date", monthStart).lte("date", monthEnd);
 
-    const [sales, expenses] = await Promise.all([
-      applyOutletFilter(salesQ),
-      applyOutletFilter(expensesQ),
-    ]);
+    const [sales, expenses] = await Promise.all([applyOutletFilter(salesQ), applyOutletFilter(expensesQ)]);
     const salesData = sales.data || [];
     const expensesData = expenses.data || [];
     setMonthSales(salesData.reduce((s, r) => s + Number(r.total_revenue), 0));
@@ -193,9 +176,15 @@ const Dashboard = () => {
     ]);
 
     const dailyMap: Record<string, number> = {};
-    (mSales.data || []).forEach((r) => { dailyMap[r.date] = (dailyMap[r.date] || 0) + Number(r.total_revenue); });
-    (mExpenses.data || []).forEach((r) => { dailyMap[r.date] = (dailyMap[r.date] || 0) - Number(r.amount); });
-    (mCapital.data || []).forEach((r) => { dailyMap[r.date] = (dailyMap[r.date] || 0) + Number(r.amount); });
+    (mSales.data || []).forEach((r) => {
+      dailyMap[r.date] = (dailyMap[r.date] || 0) + Number(r.total_revenue);
+    });
+    (mExpenses.data || []).forEach((r) => {
+      dailyMap[r.date] = (dailyMap[r.date] || 0) - Number(r.amount);
+    });
+    (mCapital.data || []).forEach((r) => {
+      dailyMap[r.date] = (dailyMap[r.date] || 0) + Number(r.amount);
+    });
 
     const today = new Date();
     const endDate = isBefore(endOfMonth(selectedMonth), today) ? endOfMonth(selectedMonth) : today;
@@ -219,7 +208,13 @@ const Dashboard = () => {
     { title: "Total Expenses", value: monthExpenses, icon: Receipt, color: "text-destructive" },
     { title: "Profit", value: profit, icon: TrendingUp, color: profit >= 0 ? "text-success" : "text-destructive" },
     { title: "Avg. Sale", value: avgSale, icon: BarChart3, color: "text-primary", subtitle: `${salesCount} entries` },
-    { title: "Avg. Expense", value: avgExpense, icon: PieChart, color: "text-destructive", subtitle: `${expensesCount} entries` },
+    {
+      title: "Avg. Expense",
+      value: avgExpense,
+      icon: PieChart,
+      color: "text-destructive",
+      subtitle: `${expensesCount} entries`,
+    },
   ];
 
   const tooltipStyle = {
@@ -236,9 +231,7 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-serif font-semibold tracking-tight">
-            Dashboard
-          </h1>
+          <h1 className="text-3xl font-serif font-semibold tracking-tight">Dashboard</h1>
           {isAll && <p className="text-sm text-muted-foreground mt-1">All Outlets</p>}
         </div>
         <button
@@ -247,7 +240,6 @@ const Dashboard = () => {
         >
           <Wallet className="h-4 w-4 text-primary" />
           <div className="text-left">
-            <p className="text-xs text-muted-foreground leading-none mb-0.5">Total Funds</p>
             <p className={`text-sm font-semibold ${totalFunds >= 0 ? "text-success" : "text-destructive"}`}>
               ₹{totalFunds.toLocaleString()}
             </p>
@@ -262,7 +254,13 @@ const Dashboard = () => {
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-sm font-medium min-w-[140px] text-center text-foreground">{monthLabel}</span>
-        <Button variant="outline" size="icon" onClick={goToNextMonth} disabled={isCurrentMonth} className="h-8 w-8 rounded-lg">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={goToNextMonth}
+          disabled={isCurrentMonth}
+          className="h-8 w-8 rounded-lg"
+        >
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -272,7 +270,9 @@ const Dashboard = () => {
         {kpis.map((kpi) => (
           <Card key={kpi.title} className="shadow-ring border-0 hover:shadow-ring-hover transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{kpi.title}</CardTitle>
+              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {kpi.title}
+              </CardTitle>
               <kpi.icon className={`h-4 w-4 ${kpi.color} opacity-70`} />
             </CardHeader>
             <CardContent>
@@ -298,7 +298,13 @@ const Dashboard = () => {
                 <XAxis dataKey="name" stroke="hsl(48 4% 50%)" fontSize={12} />
                 <YAxis stroke="hsl(48 4% 50%)" fontSize={12} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Line type="monotone" dataKey="revenue" stroke="hsl(18 55% 52%)" strokeWidth={2} dot={{ fill: "hsl(18 55% 52%)", r: 4 }} />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="hsl(18 55% 52%)"
+                  strokeWidth={2}
+                  dot={{ fill: "hsl(18 55% 52%)", r: 4 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -315,7 +321,13 @@ const Dashboard = () => {
                 <XAxis dataKey="name" stroke="hsl(48 4% 50%)" fontSize={12} />
                 <YAxis stroke="hsl(48 4% 50%)" fontSize={12} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Line type="monotone" dataKey="expenses" stroke="hsl(0 50% 45%)" strokeWidth={2} dot={{ fill: "hsl(0 50% 45%)", r: 4 }} />
+                <Line
+                  type="monotone"
+                  dataKey="expenses"
+                  stroke="hsl(0 50% 45%)"
+                  strokeWidth={2}
+                  dot={{ fill: "hsl(0 50% 45%)", r: 4 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -338,8 +350,17 @@ const Dashboard = () => {
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(40 20% 91%)" />
               <XAxis dataKey="name" stroke="hsl(48 4% 50%)" fontSize={12} />
               <YAxis stroke="hsl(48 4% 50%)" fontSize={12} />
-              <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`₹${value.toLocaleString()}`, "Funds"]} />
-              <Area type="monotone" dataKey="funds" stroke="hsl(18 55% 52%)" strokeWidth={2} fill="url(#fundsGradient)" />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                formatter={(value: number) => [`₹${value.toLocaleString()}`, "Funds"]}
+              />
+              <Area
+                type="monotone"
+                dataKey="funds"
+                stroke="hsl(18 55% 52%)"
+                strokeWidth={2}
+                fill="url(#fundsGradient)"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </CardContent>
@@ -354,16 +375,30 @@ const Dashboard = () => {
           <div className="space-y-4 py-2">
             <div>
               <label className="text-sm font-medium text-foreground">Amount (₹)</label>
-              <Input type="number" placeholder="Enter amount" value={capitalAmount} onChange={(e) => setCapitalAmount(e.target.value)} min="0" />
+              <Input
+                type="number"
+                placeholder="Enter amount"
+                value={capitalAmount}
+                onChange={(e) => setCapitalAmount(e.target.value)}
+                min="0"
+              />
             </div>
             <div>
               <label className="text-sm font-medium text-foreground">Note (optional)</label>
-              <Input placeholder="e.g. Investor funding, personal savings" value={capitalNote} onChange={(e) => setCapitalNote(e.target.value)} />
+              <Input
+                placeholder="e.g. Investor funding, personal savings"
+                value={capitalNote}
+                onChange={(e) => setCapitalNote(e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCapitalModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddCapital} disabled={submitting}>{submitting ? "Adding..." : "Add Capital"}</Button>
+            <Button variant="outline" onClick={() => setCapitalModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddCapital} disabled={submitting}>
+              {submitting ? "Adding..." : "Add Capital"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
