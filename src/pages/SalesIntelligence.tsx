@@ -80,14 +80,18 @@ const SalesIntelligence = () => {
     const { data: salesData } = await salesQ;
     setSales(salesData || []);
 
-    // Fetch sale items for those sales
+    // Fetch sale items for those sales, then keep only items that still exist in menu_items.
     const saleIds = (salesData || []).map((s) => s.id);
     if (saleIds.length > 0) {
-      const { data: itemsData } = await supabase
-        .from("sale_items")
-        .select("item_name, quantity, price, sale_id")
-        .in("sale_id", saleIds);
-      setSaleItems(itemsData || []);
+      const [{ data: itemsData }, { data: menuItemsData }] = await Promise.all([
+        supabase
+          .from("sale_items")
+          .select("item_name, quantity, price, sale_id")
+          .in("sale_id", saleIds),
+        supabase.from("menu_items").select("name"),
+      ]);
+      const validMenuItemNames = new Set((menuItemsData || []).map((item) => item.name));
+      setSaleItems((itemsData || []).filter((item) => validMenuItemNames.has(item.item_name)));
     } else {
       setSaleItems([]);
     }
