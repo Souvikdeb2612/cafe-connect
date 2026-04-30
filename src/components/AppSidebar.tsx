@@ -127,7 +127,7 @@ const AppSidebar = () => {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transition-transform md:translate-x-0 md:static md:z-auto shadow-whisper",
+          "fixed inset-y-0 left-0 z-40 w-64 bg-card border-r border-border transition-transform md:translate-x-0 md:static md:z-auto md:h-screen md:sticky md:top-0 shadow-whisper overflow-y-auto",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
