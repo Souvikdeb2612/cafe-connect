@@ -21,7 +21,18 @@ interface Expense {
   notes: string;
   category_id: string;
   categories?: { name: string };
+  outlets?: { name: string };
 }
+
+export const buildExpenseRows = (data: Expense[] | null | undefined, selectedOutletId: string | null) => {
+  const rows = data || [];
+
+  if (selectedOutletId === "all") {
+    return rows.sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  return rows;
+};
 
 interface Category {
   id: string;
@@ -40,6 +51,8 @@ const Expenses = () => {
   const [form, setForm] = useState({ category_id: "", amount: "", date: format(new Date(), "yyyy-MM-dd"), notes: "" });
 
   const canEdit = isAdmin || roles.includes("outlet_manager");
+  const showOutletColumn = selectedOutletId === "all";
+  const showActions = canEdit && selectedOutletId !== "all";
 
   useEffect(() => {
     fetchCategories();
@@ -57,7 +70,7 @@ const Expenses = () => {
   const fetchExpenses = async () => {
     let query = supabase
       .from("expenses")
-      .select("*, categories(name)")
+      .select("*, categories(name), outlets(name)")
       .order("date", { ascending: false });
 
     if (selectedOutletId && selectedOutletId !== "all") {
@@ -73,19 +86,7 @@ const Expenses = () => {
 
     const { data } = await query;
     
-    if (selectedOutletId === "all" && data) {
-      const grouped: Record<string, Expense> = {};
-      data.forEach((e: any) => {
-        const key = `${e.date}_${e.category_id || "none"}`;
-        if (!grouped[key]) {
-          grouped[key] = { id: key, date: e.date, amount: 0, notes: "", category_id: e.category_id, categories: e.categories };
-        }
-        grouped[key].amount += Number(e.amount);
-      });
-      setExpenses(Object.values(grouped).sort((a, b) => b.date.localeCompare(a.date)));
-    } else {
-      setExpenses(data || []);
-    }
+    setExpenses(buildExpenseRows(data as Expense[] | null, selectedOutletId));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,23 +177,25 @@ const Expenses = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
+                {showOutletColumn && <TableHead>Outlet</TableHead>}
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Notes</TableHead>
-                {canEdit && <TableHead className="w-20" />}
+                {showActions && <TableHead className="w-20" />}
               </TableRow>
             </TableHeader>
             <TableBody>
               {expenses.length === 0 ? (
-                <TableRow><TableCell colSpan={canEdit ? 5 : 4} className="text-center text-muted-foreground py-8">No expenses yet</TableCell></TableRow>
+                <TableRow><TableCell colSpan={4 + (showOutletColumn ? 1 : 0) + (showActions ? 1 : 0)} className="text-center text-muted-foreground py-8">No expenses yet</TableCell></TableRow>
               ) : (
                 expenses.map((e) => (
                   <TableRow key={e.id}>
                     <TableCell>{format(new Date(e.date), "dd MMM yyyy")}</TableCell>
+                    {showOutletColumn && <TableCell>{e.outlets?.name || "—"}</TableCell>}
                     <TableCell>{e.categories?.name || "—"}</TableCell>
                     <TableCell className="text-right font-medium">₹{Number(e.amount).toLocaleString()}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{e.notes || "—"}</TableCell>
-                    {canEdit && (
+                    {showActions && (
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(e)}><Pencil className="h-4 w-4" /></Button>
