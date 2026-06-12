@@ -169,6 +169,7 @@ const SalesIntelligence = () => {
       <div className="flex items-center gap-4 flex-wrap">
         <h1 className="text-3xl font-serif font-semibold tracking-tight">Sales Intelligence</h1>
         <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
+        {loading && <span className="text-sm text-muted-foreground animate-pulse">Loading…</span>}
       </div>
 
       {/* MoM Growth Card */}

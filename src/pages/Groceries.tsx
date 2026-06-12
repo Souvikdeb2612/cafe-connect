@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -30,6 +31,7 @@ const Groceries = () => {
   const [purchases, setPurchases] = useState<GroceryPurchase[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<GroceryPurchase | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [form, setForm] = useState({ item_name: "", quantity: "", unit: "", cost: "", date: format(new Date(), "yyyy-MM-dd"), notes: "" });
 
@@ -106,16 +108,24 @@ const Groceries = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    await supabase.from("grocery_purchases").delete().eq("id", id);
-    fetchPurchases();
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    const { error } = await supabase.from("grocery_purchases").delete().eq("id", deletingId);
+    if (error) {
+      toast({ title: "Error deleting purchase", description: error.message, variant: "destructive" });
+    } else {
+      fetchPurchases();
+    }
+    setDeletingId(null);
   };
+
+  const totalCost = purchases.reduce((s, p) => s + Number(p.cost), 0);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold">Grocery Purchases</h1>
+          <h1 className="text-3xl font-serif font-semibold tracking-tight">Groceries</h1>
           <MonthFilter value={selectedMonth} onChange={setSelectedMonth} />
         </div>
         <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}>
@@ -159,6 +169,21 @@ const Groceries = () => {
         </Dialog>
       </div>
 
+      {purchases.length > 0 && (
+        <Card className="shadow-ring border-0">
+          <CardContent className="py-4 flex items-center gap-6">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Cost</p>
+              <p className="text-2xl font-serif font-semibold">₹{totalCost.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Purchases</p>
+              <p className="text-2xl font-serif font-semibold">{purchases.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -187,7 +212,7 @@ const Groceries = () => {
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeletingId(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
                       </TableCell>
                     )}
@@ -198,6 +223,21 @@ const Groceries = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deletingId} onOpenChange={(o) => { if (!o) setDeletingId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete purchase?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

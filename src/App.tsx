@@ -5,11 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AdminRoute from "@/components/AdminRoute";
 import AppLayout from "@/components/AppLayout";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Sales from "@/pages/Sales";
 import Expenses from "@/pages/Expenses";
+import Groceries from "@/pages/Groceries";
 import Outlets from "@/pages/Outlets";
 import UserManagement from "@/pages/UserManagement";
 import MenuItems from "@/pages/MenuItems";
@@ -38,11 +40,12 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/sales" element={<Sales />} />
               <Route path="/expenses" element={<Expenses />} />
-              <Route path="/outlets" element={<Outlets />} />
-              <Route path="/users" element={<UserManagement />} />
-              <Route path="/menu-items" element={<MenuItems />} />
+              <Route path="/groceries" element={<Groceries />} />
               <Route path="/sales-intelligence" element={<SalesIntelligence />} />
               <Route path="/expenses-intelligence" element={<ExpensesIntelligence />} />
+              <Route path="/outlets" element={<AdminRoute><Outlets /></AdminRoute>} />
+              <Route path="/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
+              <Route path="/menu-items" element={<AdminRoute><MenuItems /></AdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

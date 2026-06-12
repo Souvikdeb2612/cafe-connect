@@ -71,18 +71,22 @@ const UserManagement = () => {
   const handleSave = async () => {
     if (!selectedUser) return;
 
-    // Update role
-    await supabase.from("user_roles").delete().eq("user_id", selectedUser.id);
+    const { error: roleDeleteErr } = await supabase.from("user_roles").delete().eq("user_id", selectedUser.id);
+    if (roleDeleteErr) { toast({ title: "Error updating role", description: roleDeleteErr.message, variant: "destructive" }); return; }
+
     if (newRole) {
-      await supabase.from("user_roles").insert({ user_id: selectedUser.id, role: newRole });
+      const { error: roleInsertErr } = await supabase.from("user_roles").insert({ user_id: selectedUser.id, role: newRole });
+      if (roleInsertErr) { toast({ title: "Error assigning role", description: roleInsertErr.message, variant: "destructive" }); return; }
     }
 
-    // Update outlet assignments
-    await supabase.from("user_outlets").delete().eq("user_id", selectedUser.id);
+    const { error: outletDeleteErr } = await supabase.from("user_outlets").delete().eq("user_id", selectedUser.id);
+    if (outletDeleteErr) { toast({ title: "Error updating outlets", description: outletDeleteErr.message, variant: "destructive" }); return; }
+
     if (selectedOutlets.length > 0) {
-      await supabase.from("user_outlets").insert(
+      const { error: outletInsertErr } = await supabase.from("user_outlets").insert(
         selectedOutlets.map((oid) => ({ user_id: selectedUser.id, outlet_id: oid }))
       );
+      if (outletInsertErr) { toast({ title: "Error assigning outlets", description: outletInsertErr.message, variant: "destructive" }); return; }
     }
 
     setDialogOpen(false);

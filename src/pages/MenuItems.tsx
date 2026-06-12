@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +33,8 @@ const MenuItems = () => {
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+  const [deletingCatId, setDeletingCatId] = useState<string | null>(null);
   const [itemForm, setItemForm] = useState({ name: "", price: "" });
   const [catForm, setCatForm] = useState({ name: "", type: "expense" });
 
@@ -74,14 +77,24 @@ const MenuItems = () => {
     setItemDialogOpen(true);
   };
 
-  const handleDeleteItem = async (id: string) => {
-    await supabase.from("menu_items").delete().eq("id", id);
-    fetchMenuItems();
+  const handleDeleteItem = async () => {
+    if (!deletingItemId) return;
+    const { error } = await supabase.from("menu_items").delete().eq("id", deletingItemId);
+    if (error) {
+      toast({ title: "Cannot delete", description: error.message, variant: "destructive" });
+    } else {
+      fetchMenuItems();
+    }
+    setDeletingItemId(null);
   };
 
   const handleToggleItem = async (item: MenuItem) => {
-    await supabase.from("menu_items").update({ is_active: !item.is_active }).eq("id", item.id);
-    fetchMenuItems();
+    const { error } = await supabase.from("menu_items").update({ is_active: !item.is_active }).eq("id", item.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      fetchMenuItems();
+    }
   };
 
   // Categories CRUD
@@ -108,13 +121,15 @@ const MenuItems = () => {
     setCatDialogOpen(true);
   };
 
-  const handleDeleteCat = async (id: string) => {
-    const { error } = await supabase.from("categories").delete().eq("id", id);
+  const handleDeleteCat = async () => {
+    if (!deletingCatId) return;
+    const { error } = await supabase.from("categories").delete().eq("id", deletingCatId);
     if (error) {
-      toast({ title: "Cannot delete", description: "Category is in use by expenses.", variant: "destructive" });
-      return;
+      toast({ title: "Cannot delete", description: "Category may be in use by expenses.", variant: "destructive" });
+    } else {
+      fetchCategories();
     }
-    fetchCategories();
+    setDeletingCatId(null);
   };
 
   return (
@@ -177,7 +192,7 @@ const MenuItems = () => {
                         <TableCell>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" onClick={() => handleEditItem(item)}><Pencil className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteItem(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => setDeletingItemId(item.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -229,7 +244,7 @@ const MenuItems = () => {
                         <TableCell>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" onClick={() => handleEditCat(cat)}><Pencil className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteCat(cat.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => setDeletingCatId(cat.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -241,6 +256,32 @@ const MenuItems = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!deletingItemId} onOpenChange={(o) => { if (!o) setDeletingItemId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete menu item?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteItem} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deletingCatId} onOpenChange={(o) => { if (!o) setDeletingCatId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete category?</AlertDialogTitle>
+            <AlertDialogDescription>This will fail if the category is used by existing expenses.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCat} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

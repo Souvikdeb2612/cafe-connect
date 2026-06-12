@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOutlet } from "@/contexts/OutletContext";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   DollarSign,
@@ -24,8 +24,8 @@ import { toast } from "sonner";
 
 const Dashboard = () => {
   const { selectedOutletId } = useOutlet();
-  const { isAdmin } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [kpiLoading, setKpiLoading] = useState(false);
   const [monthSales, setMonthSales] = useState(0);
   const [monthExpenses, setMonthExpenses] = useState(0);
   const [salesCount, setSalesCount] = useState(0);
@@ -48,7 +48,7 @@ const Dashboard = () => {
   const goToPrevMonth = () => setSelectedMonth((prev) => subMonths(prev, 1));
   const goToNextMonth = () => {
     const next = addMonths(selectedMonth, 1);
-    if (next <= new Date()) setSelectedMonth(next);
+    if (format(next, "yyyy-MM") <= format(new Date(), "yyyy-MM")) setSelectedMonth(next);
   };
   const isCurrentMonth = format(selectedMonth, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
@@ -105,6 +105,7 @@ const Dashboard = () => {
   };
 
   const fetchKPIs = async () => {
+    setKpiLoading(true);
     let salesQ = supabase.from("sales").select("total_revenue").gte("date", monthStart).lte("date", monthEnd);
     let expensesQ = supabase.from("expenses").select("amount").gte("date", monthStart).lte("date", monthEnd);
 
@@ -115,6 +116,7 @@ const Dashboard = () => {
     setMonthExpenses(expensesData.reduce((s, r) => s + Number(r.amount), 0));
     setSalesCount(salesData.length);
     setExpensesCount(expensesData.length);
+    setKpiLoading(false);
   };
 
   const fetchMonthlySales = async () => {
@@ -237,9 +239,11 @@ const Dashboard = () => {
         <button
           onClick={() => setCapitalModalOpen(true)}
           className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-4 py-2.5 shadow-ring hover:shadow-ring-hover transition-shadow cursor-pointer"
+          title="Total in-hand funds (all time). Click to add capital."
         >
           <Wallet className="h-4 w-4 text-primary" />
           <div className="text-left">
+            <p className="text-xs text-muted-foreground leading-none mb-0.5">In-Hand Funds</p>
             <p className={`text-sm font-semibold ${totalFunds >= 0 ? "text-success" : "text-destructive"}`}>
               ₹{totalFunds.toLocaleString()}
             </p>
@@ -267,22 +271,33 @@ const Dashboard = () => {
 
       {/* KPI Cards */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-        {kpis.map((kpi) => (
-          <Card key={kpi.title} className="shadow-ring border-0 hover:shadow-ring-hover transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {kpi.title}
-              </CardTitle>
-              <kpi.icon className={`h-4 w-4 ${kpi.color} opacity-70`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-serif font-semibold">₹{kpi.value.toLocaleString()}</div>
-              {"subtitle" in kpi && kpi.subtitle && (
-                <p className="text-xs text-muted-foreground mt-1">{kpi.subtitle}</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+        {kpiLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <Card key={i} className="shadow-ring border-0">
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-3 w-24" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-7 w-20" />
+                </CardContent>
+              </Card>
+            ))
+          : kpis.map((kpi) => (
+              <Card key={kpi.title} className="shadow-ring border-0 hover:shadow-ring-hover transition-shadow">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {kpi.title}
+                  </CardTitle>
+                  <kpi.icon className={`h-4 w-4 ${kpi.color} opacity-70`} />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-serif font-semibold">₹{kpi.value.toLocaleString()}</div>
+                  {"subtitle" in kpi && kpi.subtitle && (
+                    <p className="text-xs text-muted-foreground mt-1">{kpi.subtitle}</p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
       </div>
 
       {/* Charts */}

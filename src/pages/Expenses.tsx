@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -47,6 +48,7 @@ const Expenses = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
   const [form, setForm] = useState({ category_id: "", amount: "", date: format(new Date(), "yyyy-MM-dd"), notes: "" });
 
@@ -84,8 +86,11 @@ const Expenses = () => {
         .lte("date", format(endOfMonth(monthDate), "yyyy-MM-dd"));
     }
 
-    const { data } = await query;
-    
+    const { data, error } = await query;
+    if (error) {
+      toast({ title: "Error loading expenses", description: error.message, variant: "destructive" });
+      return;
+    }
     setExpenses(buildExpenseRows(data as Expense[] | null, selectedOutletId));
   };
 
@@ -119,9 +124,16 @@ const Expenses = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    await supabase.from("expenses").delete().eq("id", id);
-    fetchExpenses();
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    const { error } = await supabase.from("expenses").delete().eq("id", deletingId);
+    if (error) {
+      toast({ title: "Error deleting expense", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Expense deleted" });
+      fetchExpenses();
+    }
+    setDeletingId(null);
   };
 
   return (
@@ -199,7 +211,7 @@ const Expenses = () => {
                       <TableCell>
                         <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(e)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(e.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeletingId(e.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                         </div>
                       </TableCell>
                     )}
@@ -210,6 +222,21 @@ const Expenses = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deletingId} onOpenChange={(o) => { if (!o) setDeletingId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete expense?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

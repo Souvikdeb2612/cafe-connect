@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
+const STORAGE_KEY = "cafe_selected_outlet";
+
 interface OutletContextType {
   selectedOutletId: string | null;
   setSelectedOutletId: (id: string | null) => void;
@@ -8,7 +10,18 @@ interface OutletContextType {
 const OutletContext = createContext<OutletContextType | undefined>(undefined);
 
 export const OutletProvider = ({ children }: { children: ReactNode }) => {
-  const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
+  const [selectedOutletId, setSelectedOutletIdState] = useState<string | null>(
+    () => localStorage.getItem(STORAGE_KEY)
+  );
+
+  const setSelectedOutletId = (id: string | null) => {
+    if (id) {
+      localStorage.setItem(STORAGE_KEY, id);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    setSelectedOutletIdState(id);
+  };
 
   return (
     <OutletContext.Provider value={{ selectedOutletId, setSelectedOutletId }}>
