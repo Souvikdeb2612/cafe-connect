@@ -40,6 +40,7 @@
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const QTY_PATTERN = /x(\d+(?:\.\d{1,2})?)/i;
+const GROCERY_QTY_UNIT_PATTERN = /x(\d+(?:\.\d{1,2})?)(kg|g|l|pcs)?/i;
 const PRICE_PATTERN = /@\s*(\d+(?:\.\d{1,2})?)/;
 const TOTAL_PATTERN = /^\s*(\d+(?:\.\d{1,2})?)\s*$/;
 const OUTLET_NAME_PATTERN = /^[A-Za-z0-9 _'-]+$/;
@@ -93,7 +94,7 @@ function parseHeader(firstLine) {
   if (spaceIdx === -1) return null;
 
   const type = trimmed.slice(0, spaceIdx).toUpperCase();
-  if (type !== "SALE" && type !== "EXPENSE") return null;
+  if (type !== "SALE" && type !== "EXPENSE" && type !== "GROCERY") return null;
 
   const rest = trimmed.slice(spaceIdx + 1).trim();
 
@@ -165,6 +166,36 @@ function parseExpenseLine(line) {
   if (!itemName) return null;
 
    return { itemName, quantity, price };
+}
+
+/**
+ * Parses a single grocery line: "Tomato x5kg @30"
+ * Unit is optional and attached directly to the quantity: kg, g, L, pcs.
+ * @param {string} line
+ * @returns {{ itemName: string, quantity: number, unit: string|null, price: number } | null}
+ */
+function parseGroceryLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed || !PRICE_PATTERN.test(trimmed)) return null;
+
+  const qtyMatch = GROCERY_QTY_UNIT_PATTERN.exec(trimmed);
+  const priceMatch = PRICE_PATTERN.exec(trimmed);
+  if (!priceMatch) return null;
+
+  const price = parseFloat(priceMatch[1]);
+  if (isNaN(price) || price <= 0 || price > MAX_PRICE) return null;
+
+  const quantity = qtyMatch ? parseFloat(qtyMatch[1]) : 1;
+  const unit = qtyMatch?.[2] ? qtyMatch[2].toLowerCase() : null;
+  if (quantity <= 0 || quantity > MAX_QUANTITY) return null;
+
+  const priceIdx = trimmed.lastIndexOf(priceMatch[0]);
+  const beforePrice = trimmed.slice(0, priceIdx).trim();
+  const itemName = qtyMatch ? beforePrice.replace(GROCERY_QTY_UNIT_PATTERN, "").trim() : beforePrice;
+
+  if (!itemName) return null;
+
+  return { itemName, quantity, unit, price };
 }
 
 // ─── Single Transaction Parser ──────────────────────────────────────────────
@@ -244,7 +275,9 @@ export function parseMessage(text) {
   }
 
   // --- Step 4: Parse line items ---
-  const parseLine = header.type === "SALE" ? parseSaleLine : parseExpenseLine;
+  const parseLine = header.type === "SALE" ? parseSaleLine
+    : header.type === "EXPENSE" ? parseExpenseLine
+    : parseGroceryLine;
 
   const items = [];
   for (const line of itemLines) {
@@ -321,7 +354,7 @@ export function parseAll(text) {
   const blockStarts = [];
   for (let i = 0; i < lines.length; i++) {
     const firstWord = lines[i].trim().split(/\s/)[0]?.toUpperCase();
-    if (firstWord === "SALE" || firstWord === "EXPENSE") {
+    if (firstWord === "SALE" || firstWord === "EXPENSE" || firstWord === "GROCERY") {
       blockStarts.push(i);
     }
   }
@@ -361,6 +394,11 @@ export function formatSuccessReply(result) {
       .map((it) => (it.quantity !== 1 ? `${it.itemName} x${it.quantity}` : it.itemName))
       .join(", ");
     return `✅ Sale recorded — ${outlet}${dateNote} — ₹${total}\n  ${itemList}`;
+  } else if (result.type === "GROCERY") {
+    const itemList = result.items
+      .map((it) => `${it.itemName} x${it.quantity}${it.unit ?? ""}`)
+      .join(", ");
+    return `✅ Grocery recorded — ${outlet}${dateNote} — ₹${total}\n  ${itemList}`;
   } else {
     const catNote = result.categoryName ? ` [${result.categoryName}]` : "";
     const itemList = result.items

@@ -169,6 +169,10 @@ const Groceries = () => {
         </Dialog>
       </div>
 
+      <p className="text-xs text-muted-foreground -mt-2">
+        Entries recorded via the Telegram bot using <code className="bg-muted px-1 rounded">GROCERY</code>. Earlier grocery purchases are in <strong>Expenses</strong> under the Grocery category.
+      </p>
+
       {purchases.length > 0 && (
         <Card className="shadow-ring border-0">
           <CardContent className="py-4 flex items-center gap-6">

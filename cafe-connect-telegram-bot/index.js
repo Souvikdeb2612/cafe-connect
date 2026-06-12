@@ -265,6 +265,42 @@ async function recordExpense(outletId, categoryId, date, items, total) {
   return { ok: true };
 }
 
+async function checkGroceryDuplicate(outletId, date, items) {
+  const { data: existing } = await supabase
+    .from("grocery_purchases")
+    .select("item_name, quantity, unit, cost")
+    .eq("outlet_id", outletId)
+    .eq("date", date);
+
+  if (!existing || existing.length === 0) return false;
+
+  return items.every((it) => {
+    const cost = Math.round(it.quantity * it.price * 100) / 100;
+    return existing.some(
+      (e) =>
+        e.item_name.toLowerCase() === it.itemName.toLowerCase() &&
+        Number(e.quantity) === it.quantity &&
+        (e.unit ?? null) === (it.unit ?? null) &&
+        Math.abs(Number(e.cost) - cost) < 0.01
+    );
+  });
+}
+
+async function recordGrocery(outletId, date, items) {
+  const rows = items.map((it) => ({
+    outlet_id: outletId,
+    item_name: it.itemName,
+    quantity: it.quantity,
+    unit: it.unit ?? null,
+    cost: Math.round(it.quantity * it.price * 100) / 100,
+    date,
+  }));
+
+  const { error } = await supabase.from("grocery_purchases").insert(rows);
+  if (error) return { ok: false, error: `Grocery insert failed: ${error.message}` };
+  return { ok: true };
+}
+
 // ─── Message Handler ─────────────────────────────────────────────────────────
 
 bot.on("message", async (msg) => {
@@ -277,7 +313,7 @@ bot.on("message", async (msg) => {
   if (text.length < 10) return;
 
   const firstWord = text.split(/\s/)[0].toUpperCase();
-  if (firstWord !== "SALE" && firstWord !== "EXPENSE") return;
+  if (firstWord !== "SALE" && firstWord !== "EXPENSE" && firstWord !== "GROCERY") return;
 
   console.log(`\n📥 [${new Date().toISOString()}] ${msg.chat.title ?? "DM"} / ${msg.from?.first_name}: ${text.slice(0, 80)}`);
 
@@ -337,7 +373,10 @@ bot.on("message", async (msg) => {
       }
     }
 
-    const isDuplicate = await checkDuplicate(parsed.type, outletId, parsed.date, parsed.parsedTotal, parsed.items);
+    const isDuplicate = parsed.type === "GROCERY"
+      ? await checkGroceryDuplicate(outletId, parsed.date, parsed.items)
+      : await checkDuplicate(parsed.type, outletId, parsed.date, parsed.parsedTotal, parsed.items);
+
     if (isDuplicate) {
       await bot.sendMessage(msg.chat.id, "⚠️ Duplicate entry detected — this data was already logged.", { reply_to_message_id: msg.message_id });
       continue;
@@ -346,6 +385,8 @@ bot.on("message", async (msg) => {
     let recordResult;
     if (parsed.type === "SALE") {
       recordResult = await recordSale(outletId, parsed.date, parsed.items, parsed.parsedTotal);
+    } else if (parsed.type === "GROCERY") {
+      recordResult = await recordGrocery(outletId, parsed.date, parsed.items);
     } else {
       recordResult = await recordExpense(outletId, categoryId, parsed.date, parsed.items, parsed.parsedTotal);
     }
