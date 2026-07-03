@@ -41,4 +41,21 @@ cross join lateral (
     and lower(trim(category.name)) = 'grocery'
   order by category.id
   limit 1
-) as grocery_category;
+) as grocery_category
+where not exists (
+  select 1
+  from public.expenses as existing
+  where existing.outlet_id = grocery.outlet_id
+    and existing.category_id = grocery_category.id
+    and existing.amount = grocery.cost
+    and existing.date = grocery.date
+    and existing.notes = grocery.item_name
+      || ' x'
+      || to_char(grocery.quantity, 'FM999999990.##')
+      || coalesce(grocery.unit, '')
+      || case
+        when nullif(trim(grocery.notes), '') is null then ''
+        else ' — ' || trim(grocery.notes)
+      end
+    and existing.created_by is not distinct from grocery.created_by
+);
