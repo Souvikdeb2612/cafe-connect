@@ -19,20 +19,42 @@ interface Expense {
   id: string;
   amount: number;
   date: string;
-  notes: string;
-  category_id: string;
+  notes: string | null;
+  category_id: string | null;
+  outlet_id?: string;
   categories?: { name: string };
   outlets?: { name: string };
 }
 
-export const buildExpenseRows = (data: Expense[] | null | undefined, selectedOutletId: string | null) => {
-  const rows = data || [];
+interface ExpenseRow extends Expense {
+  entryCount: number;
+}
 
-  if (selectedOutletId === "all") {
-    return rows.sort((a, b) => b.date.localeCompare(a.date));
+export const buildExpenseRows = (data: Expense[] | null | undefined, selectedOutletId: string | null) => {
+  const grouped = new Map<string, ExpenseRow>();
+
+  for (const expense of data || []) {
+    const outletKey = expense.outlet_id || expense.outlets?.name || selectedOutletId || "unknown-outlet";
+    const categoryKey = expense.category_id || expense.categories?.name || "uncategorized";
+    const key = JSON.stringify([expense.date, outletKey, categoryKey]);
+    const existing = grouped.get(key);
+
+    if (!existing) {
+      grouped.set(key, {
+        ...expense,
+        amount: Number(expense.amount),
+        entryCount: 1,
+      });
+      continue;
+    }
+
+    existing.amount += Number(expense.amount);
+    existing.notes = [existing.notes, expense.notes].filter(Boolean).join(", ");
+    existing.entryCount += 1;
+    existing.id = `group:${key}`;
   }
 
-  return rows;
+  return Array.from(grouped.values()).sort((a, b) => b.date.localeCompare(a.date));
 };
 
 interface Category {
@@ -44,7 +66,7 @@ const Expenses = () => {
   const { selectedOutletId } = useOutlet();
   const { user, isAdmin, roles } = useAuth();
   const { toast } = useToast();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
@@ -209,10 +231,12 @@ const Expenses = () => {
                     <TableCell className="text-sm text-muted-foreground">{e.notes || "—"}</TableCell>
                     {showActions && (
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(e)}><Pencil className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeletingId(e.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
+                        {e.entryCount === 1 && (
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(e)}><Pencil className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" onClick={() => setDeletingId(e.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          </div>
+                        )}
                       </TableCell>
                     )}
                   </TableRow>
