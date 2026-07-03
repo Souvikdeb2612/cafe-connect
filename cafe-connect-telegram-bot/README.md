@@ -149,15 +149,26 @@ EXPENSE [OutletName]
 [total]
 ```
 
+### GROCERY
+
+`GROCERY` is expense shorthand. Bot records one `expenses` row under Grocery category.
+
+```
+GROCERY [OutletName]
+[ItemName] x[quantity][kg|g|l|pcs] @[unit price]
+---
+[total]
+```
+
 ### Rules
 
 | Rule | Detail |
 |------|--------|
-| Case | `SALE` / `EXPENSE` are case-insensitive |
+| Case | `SALE` / `EXPENSE` / `GROCERY` are case-insensitive |
 | Outlet name | Last word of the first line |
 | Separator | `---` on its own line separates items from the total |
 | Prices | Must include `@` before the amount. Decimals supported (`@120.50`) |
-| Quantities | For sales only: `x2`, `x3`, etc. Defaults to 1 if omitted |
+| Quantities | Sales accept `x2`; groceries accept quantity plus optional unit such as `x5kg`. Defaults to 1 |
 | Total validation | Parsed total (sum of qty × price) must equal stated total |
 | Unknown items | Sales with items not in `menu_items` → ⚠️ asking to add them first |
 | Empty lines | Skipped automatically |
@@ -271,8 +282,8 @@ sudo systemctl status cafe-bot
 | `menu_items` | Validates sale items exist before writing |
 | `sales` | Inserted by the bot for each SALE message |
 | `sale_items` | One row per line item, linked to `sales.id` |
-| `expenses` | One row per line item (expenses don't have a separate items table in the app) |
-| `categories` | Resolves expense category; must have `type = 'expense'` |
+| `expenses` | One row per EXPENSE or GROCERY message |
+| `categories` | Resolves expense category; GROCERY requires `Grocery` with `type = 'expense'` |
 
 > The bot assumes these tables already exist with the schema from the main Cafe Connect app. If you've modified the schema, update `index.js` accordingly.
 

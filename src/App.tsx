@@ -11,7 +11,6 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Sales from "@/pages/Sales";
 import Expenses from "@/pages/Expenses";
-import Groceries from "@/pages/Groceries";
 import Outlets from "@/pages/Outlets";
 import UserManagement from "@/pages/UserManagement";
 import MenuItems from "@/pages/MenuItems";
@@ -40,7 +39,7 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/sales" element={<Sales />} />
               <Route path="/expenses" element={<Expenses />} />
-              <Route path="/groceries" element={<Groceries />} />
+              <Route path="/groceries" element={<Navigate to="/expenses" replace />} />
               <Route path="/sales-intelligence" element={<SalesIntelligence />} />
               <Route path="/expenses-intelligence" element={<ExpensesIntelligence />} />
               <Route path="/outlets" element={<AdminRoute><Outlets /></AdminRoute>} />

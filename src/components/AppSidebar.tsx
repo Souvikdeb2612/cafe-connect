@@ -14,7 +14,6 @@ import {
   UtensilsCrossed,
   BarChart3,
   PieChart,
-  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -24,7 +23,6 @@ const navItems = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/sales", icon: DollarSign, label: "Sales" },
   { to: "/expenses", icon: Receipt, label: "Expenses" },
-  { to: "/groceries", icon: ShoppingCart, label: "Groceries" },
 ];
 
 const intelligenceItems = [

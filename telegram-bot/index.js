@@ -182,7 +182,7 @@ async function resolveCategoryId(categoryName) {
 async function getLookupSnapshot(type) {
   const [outlets, categories, menuItems] = await Promise.all([
     getOutletMap(),
-    type === "EXPENSE" ? getCategoryMap() : Promise.resolve(null),
+    type !== "SALE" ? getCategoryMap() : Promise.resolve(null),
     type === "SALE" ? getMenuItemPriceMap() : Promise.resolve(null),
   ]);
 
@@ -211,7 +211,15 @@ function buildItemSignature(type, items) {
     .join("||");
 }
 
-async function checkDuplicate(type, outletId, date, total, items) {
+function formatExpenseItem(item) {
+  const quantity = typeof item.quantity === "number" ? item.quantity : 1;
+  const unit = item.unit ?? "";
+  return quantity === 1 && !unit
+    ? `${item.itemName} @${item.price}`
+    : `${item.itemName} x${quantity}${unit} @${item.price}`;
+}
+
+async function checkDuplicate(type, outletId, date, total, items, categoryId = null) {
   const sig = buildItemSignature(type, items);
 
   if (type === "SALE") {
@@ -238,14 +246,18 @@ async function checkDuplicate(type, outletId, date, total, items) {
     return false;
   } else {
     // Expenses are now stored as a single row with combined notes + total amount
-    const newNotes = items.map((it) => `${it.itemName} @${it.price}`).join(", ");
+    const newNotes = items.map(formatExpenseItem).join(", ");
 
-    const { data: expenses, error } = await supabase
+    let query = supabase
       .from("expenses")
       .select("notes, amount")
       .eq("outlet_id", outletId)
       .eq("date", date)
       .eq("amount", total);
+
+    if (categoryId) query = query.eq("category_id", categoryId);
+
+    const { data: expenses, error } = await query;
 
     if (error || !expenses) return false;
 
@@ -271,6 +283,21 @@ async function getTotalFunds() {
 
 // ─── DB Writers ──────────────────────────────────────────────────────────────
 
+async function verifyInsertedRows(table, ids) {
+  if (ids.length === 0) return { ok: false, error: `No ${table} row IDs returned after insert` };
+
+  const { data, error } = await supabase.from(table).select("id").in("id", ids);
+  if (error) return { ok: false, error: `${table} verification failed: ${error.message}` };
+
+  const foundIds = new Set((data ?? []).map((row) => row.id));
+  const missingCount = ids.filter((id) => !foundIds.has(id)).length;
+  if (missingCount > 0) {
+    return { ok: false, error: `${table} verification failed: ${missingCount} inserted row(s) missing` };
+  }
+
+  return { ok: true };
+}
+
 async function recordSale(outletId, date, items, total) {
   const { data: sale, error: saleErr } = await supabase
     .from("sales")
@@ -294,68 +321,52 @@ async function recordSale(outletId, date, items, total) {
     price: it.price,
   }));
 
-  const { error: itemsErr } = await supabase.from("sale_items").insert(saleItemsRows);
+  const { data: insertedItems, error: itemsErr } = await supabase
+    .from("sale_items")
+    .insert(saleItemsRows)
+    .select("id");
 
-  if (itemsErr) {
+  if (itemsErr || insertedItems?.length !== saleItemsRows.length) {
     await supabase.from("sales").delete().eq("id", sale.id);
-    return { ok: false, error: `Sale items insert failed: ${itemsErr.message}` };
+    return {
+      ok: false,
+      error: `Sale items insert failed: ${itemsErr?.message ?? `expected ${saleItemsRows.length} rows, received ${insertedItems?.length ?? 0}`}`,
+    };
   }
 
-  return { ok: true };
+  const saleVerification = await verifyInsertedRows("sales", [sale.id]);
+  const itemVerification = await verifyInsertedRows("sale_items", insertedItems.map((row) => row.id));
+  if (!saleVerification.ok || !itemVerification.ok) {
+    await supabase.from("sales").delete().eq("id", sale.id);
+    return { ok: false, error: saleVerification.error ?? itemVerification.error };
+  }
+
+  return { ok: true, verifiedRows: 1 + insertedItems.length };
 }
 
 async function recordExpense(outletId, categoryId, date, items, total) {
-  const notes = items.map((it) => `${it.itemName} @${it.price}`).join(", ");
+  const notes = items.map(formatExpenseItem).join(", ");
 
-  const { error } = await supabase.from("expenses").insert({
-    outlet_id: outletId,
-    category_id: categoryId,
-    amount: total,
-    date,
-    notes,
-  });
+  const { data, error } = await supabase
+    .from("expenses")
+    .insert({
+      outlet_id: outletId,
+      category_id: categoryId,
+      amount: total,
+      date,
+      notes,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    return { ok: false, error: `Expense insert failed: ${error.message}` };
+  if (error || !data) {
+    return { ok: false, error: `Expense insert failed: ${error?.message ?? "no inserted row returned"}` };
   }
 
-  return { ok: true };
-}
+  const verification = await verifyInsertedRows("expenses", [data.id]);
+  if (!verification.ok) return verification;
 
-async function checkGroceryDuplicate(outletId, date, items) {
-  const { data: existing } = await supabase
-    .from("grocery_purchases")
-    .select("item_name, quantity, unit, cost")
-    .eq("outlet_id", outletId)
-    .eq("date", date);
-
-  if (!existing || existing.length === 0) return false;
-
-  return items.every((it) => {
-    const cost = Math.round(it.quantity * it.price * 100) / 100;
-    return existing.some(
-      (e) =>
-        e.item_name.toLowerCase() === it.itemName.toLowerCase() &&
-        Number(e.quantity) === it.quantity &&
-        (e.unit ?? null) === (it.unit ?? null) &&
-        Math.abs(Number(e.cost) - cost) < 0.01
-    );
-  });
-}
-
-async function recordGrocery(outletId, date, items) {
-  const rows = items.map((it) => ({
-    outlet_id: outletId,
-    item_name: it.itemName,
-    quantity: it.quantity,
-    unit: it.unit ?? null,
-    cost: Math.round(it.quantity * it.price * 100) / 100,
-    date,
-  }));
-
-  const { error } = await supabase.from("grocery_purchases").insert(rows);
-  if (error) return { ok: false, error: `Grocery insert failed: ${error.message}` };
-  return { ok: true };
+  return { ok: true, verifiedRows: 1 };
 }
 
 // ─── Message Handler ─────────────────────────────────────────────────────────
@@ -415,17 +426,21 @@ bot.on("message", async (msg) => {
           }
         }
 
-        if (parsed.type === "EXPENSE") {
-          const categoryName = parsed.categoryName
-            ? parsed.categoryName.toLowerCase()
-            : (process.env.DEFAULT_EXPENSE_CATEGORY ?? "Grocery").toLowerCase();
+        if (parsed.type !== "SALE") {
+          const categoryName = parsed.type === "GROCERY"
+            ? "grocery"
+            : parsed.categoryName
+              ? parsed.categoryName.toLowerCase()
+              : (process.env.DEFAULT_EXPENSE_CATEGORY ?? "Grocery").toLowerCase();
 
           categoryId = lookups.categories?.get(categoryName) ?? null;
           if (!categoryId) {
             const names = Array.from(lookups.categories?.keys() ?? []).join(", ") || "(none)";
-            const hint = parsed.categoryName
-              ? `Unknown category: "${parsed.categoryName}".`
-              : "No category specified and no default found.";
+            const hint = parsed.type === "GROCERY"
+              ? 'Required expense category "Grocery" was not found.'
+              : parsed.categoryName
+                ? `Unknown category: "${parsed.categoryName}".`
+                : "No category specified and no default found.";
             await sendReply(msg.chat.id, msg.message_id, formatErrorReply({
               valid: false,
               error: hint,
@@ -442,9 +457,14 @@ bot.on("message", async (msg) => {
         throw error;
       }
 
-      const isDuplicate = parsed.type === "GROCERY"
-        ? await checkGroceryDuplicate(outletId, parsed.date, parsed.items)
-        : await checkDuplicate(parsed.type, outletId, parsed.date, parsed.parsedTotal, parsed.items);
+      const isDuplicate = await checkDuplicate(
+        parsed.type,
+        outletId,
+        parsed.date,
+        parsed.parsedTotal,
+        parsed.items,
+        categoryId
+      );
 
       if (isDuplicate) {
         await sendReply(msg.chat.id, msg.message_id, "⚠️ Duplicate entry detected — this data was already logged.");
@@ -454,8 +474,6 @@ bot.on("message", async (msg) => {
       let recordResult;
       if (parsed.type === "SALE") {
         recordResult = await recordSale(outletId, parsed.date, parsed.items, parsed.parsedTotal);
-      } else if (parsed.type === "GROCERY") {
-        recordResult = await recordGrocery(outletId, parsed.date, parsed.items);
       } else {
         recordResult = await recordExpense(outletId, categoryId, parsed.date, parsed.items, parsed.parsedTotal);
       }
@@ -478,7 +496,7 @@ bot.on("message", async (msg) => {
       }
 
       await sendReply(msg.chat.id, msg.message_id, formatSuccessReply(parsed) + fundsText);
-      console.log(`✅ [${new Date().toISOString()}] ${parsed.type} recorded — ${parsed.outletName} (${parsed.date}) — ₹${parsed.parsedTotal}`);
+      console.log(`✅ [${new Date().toISOString()}] ${parsed.type} recorded — ${parsed.outletName} (${parsed.date}) — ₹${parsed.parsedTotal} — ${recordResult.verifiedRows} row(s) verified`);
     }
   } catch (error) {
     console.error("❌ Message handler failed:", error);
